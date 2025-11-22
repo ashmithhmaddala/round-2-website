@@ -341,25 +341,24 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     // Send email
     await transporter.sendMail({
-      from: `"NHCE Cybersecurity Club" <${process.env.EMAIL_USER}>`,
+      from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: '🔐 Password Reset - Cache Me If You Can Round 2',
+      subject: 'Password Reset - Cache Me If You Can',
       html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; border-radius: 10px;">
-          <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h1 style="color: #667eea; text-align: center; margin-bottom: 10px;">🔐 Password Reset Request</h1>
-            <h2 style="color: #764ba2; text-align: center; font-size: 18px; margin-top: 0;">Cache Me If You Can - Round 2</h2>
-            <p style="color: #333; font-size: 16px; line-height: 1.6;">Hello,</p>
-            <p style="color: #333; font-size: 16px; line-height: 1.6;">We received a request to reset your password for your <strong>NHCE Cybersecurity and Ethical Hacking Club</strong> CTF competition account.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Reset Your Password</a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+          <div style="background: white; padding: 30px; border-left: 4px solid #5b67f7;">
+            <h2 style="color: #333; margin-top: 0;">Password Reset</h2>
+            <p style="color: #555; line-height: 1.6;">You requested a password reset for Cache Me If You Can - Round 2.</p>
+            <p style="color: #555; line-height: 1.6;">Click the button below to set a new password:</p>
+            <div style="margin: 25px 0;">
+              <a href="${resetLink}" style="background: #5b67f7; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a>
             </div>
-            <p style="color: #666; font-size: 14px; line-height: 1.6;"><strong>⏱️ Important:</strong> This link is valid for <strong>1 hour only</strong>.</p>
-            <p style="color: #666; font-size: 14px; line-height: 1.6;">If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
-            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">Cybersecurity and Ethical Hacking Club, NHCE<br>Cache Me If You Can - Round 2</p>
+            <p style="color: #888; font-size: 14px; line-height: 1.6;">This link expires in 1 hour.</p>
+            <p style="color: #888; font-size: 14px; line-height: 1.6;">Didn't request this? Ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 25px 0;">
+            <p style="color: #aaa; font-size: 12px;">NHCE Cybersecurity Club</p>
           </div>
-          <p style="color: white; font-size: 13px; text-align: center; margin-top: 20px;">📧 <strong>Note:</strong> Check your spam/junk folder if you don't see this email in your inbox.</p>
+          <p style="color: #888; font-size: 12px; text-align: center; margin-top: 15px;">Check spam if you don't see this.</p>
         </div>
       `
     });

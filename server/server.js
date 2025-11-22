@@ -29,6 +29,7 @@ const allowedOrigins = [
   'https://www.nhceosintcrypto.online',
   'http://nhceosintcrypto.online',
   'http://www.nhceosintcrypto.online',
+  'https://api.nhceosintcrypto.online',
   'http://localhost:5173',
   'http://localhost:5000'
 ];

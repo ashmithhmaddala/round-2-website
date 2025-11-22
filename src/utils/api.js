@@ -1,5 +1,5 @@
 // API Base URL - change this when deploying
-const API_URL = 'https://round-2-website.onrender.com/api';
+const API_URL = 'https://api.nhceosintcrypto.online/api';
 
 // ==================== AUTH ====================
 

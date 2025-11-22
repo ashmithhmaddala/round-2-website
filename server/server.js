@@ -24,6 +24,7 @@ const allowedOrigins = [
   'https://round-2-website-bqpdjjm7d-ashmithhmaddalas-projects.vercel.app',
   'https://round-2-website-9s311brt4-ashmithhmaddalas-projects.vercel.app',
   'https://nhceosintcrypto.online',
+  'https://www.nhceosintcrypto.online',
   'http://localhost:5173'
 ];
 app.use(helmet({

@@ -363,6 +363,7 @@ app.post('/api/teams/leave', async (req, res) => {
   }
 });
 
+
 // Get all teams (admin)
 app.get('/api/teams', async (req, res) => {
   try {

@@ -27,7 +27,10 @@ const allowedOrigins = [
   'https://round-2-website-9s311brt4-ashmithhmaddalas-projects.vercel.app',
   'https://nhceosintcrypto.online',
   'https://www.nhceosintcrypto.online',
-  'http://localhost:5173'
+  'http://nhceosintcrypto.online',
+  'http://www.nhceosintcrypto.online',
+  'http://localhost:5173',
+  'http://localhost:5000'
 ];
 app.use(helmet({
   crossOriginResourcePolicy: false // allow CORS with helmet

@@ -17,7 +17,7 @@ const ForgotPassword = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        setMessage(data.message || 'Password reset email sent successfully!');
+        setMessage(`✅ Password reset email sent to ${email}! Please check your inbox and spam/junk folder. The link will expire in 1 hour.`);
       } else {
         setMessage(data.error || data.message || 'Failed to send reset email');
       }
@@ -30,8 +30,10 @@ const ForgotPassword = () => {
   return (
     <div className="forgot-password-container">
       <div className="forgot-password-box">
-        <h1>Forgot Password</h1>
-        <p className="forgot-password-desc">Enter your email address and we'll send you a link to reset your password.</p>
+        <h1>🔐 Forgot Password</h1>
+        <p className="forgot-password-subtitle">Cache Me If You Can - Round 2</p>
+        <p className="forgot-password-desc">Enter your registered email address and we'll send you a secure link to reset your password.</p>
+        <p className="forgot-password-club">NHCE Cybersecurity & Ethical Hacking Club</p>
         <form onSubmit={handleSubmit} className="forgot-password-form">
           <label htmlFor="forgot-email">Email</label>
           <input
@@ -64,15 +66,30 @@ const ForgotPassword = () => {
           color: #fff;
         }
         .forgot-password-box h1 {
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.25rem;
           font-size: 2rem;
           font-weight: bold;
           text-align: center;
         }
+        .forgot-password-subtitle {
+          text-align: center;
+          color: #60a5fa;
+          font-weight: 600;
+          font-size: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        .forgot-password-club {
+          text-align: center;
+          color: #94a3b8;
+          font-size: 0.875rem;
+          margin-bottom: 1.5rem;
+          font-style: italic;
+        }
         .forgot-password-desc {
           text-align: center;
-          margin-bottom: 1.5rem;
+          margin-bottom: 0.75rem;
           color: #cbd5e1;
+          line-height: 1.5;
         }
         .forgot-password-form {
           display: flex;
@@ -113,6 +130,11 @@ const ForgotPassword = () => {
           text-align: center;
           color: #38bdf8;
           font-weight: 500;
+          padding: 1rem;
+          background: rgba(56, 189, 248, 0.1);
+          border-radius: 8px;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          line-height: 1.6;
         }
       `}</style>
     </div>

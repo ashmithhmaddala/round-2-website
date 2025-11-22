@@ -341,10 +341,27 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     // Send email
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"NHCE Cybersecurity Club" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Password Reset Request',
-      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.</p>`
+      subject: '🔐 Password Reset - Cache Me If You Can Round 2',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; border-radius: 10px;">
+          <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h1 style="color: #667eea; text-align: center; margin-bottom: 10px;">🔐 Password Reset Request</h1>
+            <h2 style="color: #764ba2; text-align: center; font-size: 18px; margin-top: 0;">Cache Me If You Can - Round 2</h2>
+            <p style="color: #333; font-size: 16px; line-height: 1.6;">Hello,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.6;">We received a request to reset your password for your <strong>NHCE Cybersecurity and Ethical Hacking Club</strong> CTF competition account.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Reset Your Password</a>
+            </div>
+            <p style="color: #666; font-size: 14px; line-height: 1.6;"><strong>⏱️ Important:</strong> This link is valid for <strong>1 hour only</strong>.</p>
+            <p style="color: #666; font-size: 14px; line-height: 1.6;">If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">Cybersecurity and Ethical Hacking Club, NHCE<br>Cache Me If You Can - Round 2</p>
+          </div>
+          <p style="color: white; font-size: 13px; text-align: center; margin-top: 20px;">📧 <strong>Note:</strong> Check your spam/junk folder if you don't see this email in your inbox.</p>
+        </div>
+      `
     });
 
     res.json({ success: true, message: 'Password reset email sent successfully!' });
@@ -792,6 +809,31 @@ app.delete('/api/challenges/:id', async (req, res) => {
 // ==================== ADMIN ROUTES ====================
 
 // Admin login
+// Setup admin (one-time use - can be disabled after setup)
+app.post('/api/admin/setup', async (req, res) => {
+  try {
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({ username: 'ash' });
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin already exists' });
+    }
+    
+    // Create admin with password from environment variable
+    const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+    const admin = new Admin({
+      username: 'ash',
+      email: 'nhceosseh@gmail.com',
+      password: hashedPassword,
+      role: 'super_admin'
+    });
+    
+    await admin.save();
+    res.json({ success: true, message: 'Admin created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;

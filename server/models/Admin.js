@@ -27,6 +27,14 @@ const adminSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
   }
 });
 

@@ -190,6 +190,20 @@ function Login() {
               </div>
             )}
 
+            {isLogin && (
+              <div className="forgot-password-link" style={{ textAlign: 'center', marginTop: '12px' }}>
+                <a
+                  href="#"
+                  style={{ color: '#60a5fa', fontSize: '0.85rem', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}
+                  onMouseOver={(e) => e.target.style.color = '#93c5fd'}
+                  onMouseOut={(e) => e.target.style.color = '#60a5fa'}
+                >
+                  Forgot Password?
+                </a>
+              </div>
+            )}
+
             {message.text && (
               <div className={`message ${message.type}`} style={{ display: 'block', marginTop: '24px' }}>
                 {message.text}

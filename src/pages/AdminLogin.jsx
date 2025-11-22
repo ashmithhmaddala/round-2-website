@@ -106,6 +106,14 @@ function AdminLogin() {
           <div className="admin-auth-footer">
             <a href="/" className="admin-back-link">← Back to User Login</a>
           </div>
+          <div className="forgot-password-link">
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); navigate('/forgot-admin-password'); }}
+            >
+              Forgot Admin Password?
+            </a>
+          </div>
         </div>
       </div>
       <style jsx="true">{`
@@ -276,6 +284,18 @@ function AdminLogin() {
           background: rgba(255, 51, 102, 0.1);
           border: 1px solid #ef4444;
           color: #ef4444;
+        }
+        .forgot-password-link {
+          margin-top: 16px;
+          text-align: center;
+        }
+        .forgot-password-link a {
+          color: #3b82f6;
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .forgot-password-link a:hover {
+          text-decoration: underline;
         }
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(-10px); }

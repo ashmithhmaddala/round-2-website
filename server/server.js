@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 import User from './models/User.js';
 import Team from './models/Team.js';
@@ -63,6 +65,15 @@ mongoose.connect(process.env.MONGODB_URI)
     initializeSuperAdmin();
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// Configure Nodemailer
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // Initialize super admin if none exists
 async function initializeSuperAdmin() {
@@ -265,6 +276,113 @@ app.get('/api/auth/user/:username', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Forgot Password Endpoint
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email }) || await Admin.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    // Save token to user
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Send email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.</p>`
+    });
+
+    res.json({ success: true, message: 'Password reset email sent' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset Password Endpoint
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const user = await User.findOne({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } }) ||
+                 await Admin.findOne({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Forgot Admin Password
+app.post('/api/auth/forgot-admin-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+  try {
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
+    const token = crypto.randomBytes(32).toString('hex');
+    admin.resetPasswordToken = token;
+    admin.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await admin.save();
+    // Send email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&admin=true`;
+    const mailOptions = {
+      to: admin.email,
+      from: process.env.EMAIL_USER,
+      subject: 'Admin Password Reset',
+      html: `<p>You requested a password reset for your admin account.</p><p>Click <a href="${resetUrl}">here</a> to reset your password. This link will expire in 1 hour.</p>`,
+    };
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Password reset email sent to admin.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error sending admin password reset email' });
+  }
+});
+
+// Reset Admin Password
+app.post('/api/auth/reset-admin-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
+  try {
+    const admin = await Admin.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+    if (!admin) return res.status(400).json({ message: 'Invalid or expired token' });
+    admin.password = await bcrypt.hash(password, 10);
+    admin.resetPasswordToken = undefined;
+    admin.resetPasswordExpires = undefined;
+    await admin.save();
+    res.json({ message: 'Admin password has been reset successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error resetting admin password' });
   }
 });
 

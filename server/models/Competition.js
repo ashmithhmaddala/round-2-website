@@ -49,7 +49,10 @@ const competitionSchema = new mongoose.Schema({
   }
 });
 
-// Only allow one competition settings document
-competitionSchema.index({ _id: 1 }, { unique: true });
+// Update timestamp on save
+competitionSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
 export default mongoose.model('Competition', competitionSchema);

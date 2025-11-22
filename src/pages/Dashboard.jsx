@@ -273,7 +273,7 @@ function Dashboard() {
           </div>
         )}
       </main>
-      <style jsx="true">{`
+      <style>{`
         /*
           --- Style Guide ---
           

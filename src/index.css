@@ -1033,7 +1033,232 @@ button .fas, button .far {
     font-style: italic;
 }
 
-/* Responsive Design */
+/* Modern Login Page Redesign */
+.login-page {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f172a;
+    overflow: hidden;
+}
+
+.login-split {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* Left Side - Visuals */
+.login-visual {
+    flex: 1;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%),
+                url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px;
+    overflow: hidden;
+}
+
+.login-visual::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.15), transparent 60%),
+                radial-gradient(circle at 70% 70%, rgba(139, 92, 246, 0.15), transparent 60%);
+    z-index: 1;
+}
+
+.visual-content {
+    position: relative;
+    z-index: 2;
+    max-width: 600px;
+}
+
+.visual-content h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.visual-subtitle {
+    font-size: 1.25rem;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    max-width: 480px;
+}
+
+.visual-features {
+    display: grid;
+    gap: 20px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.feature-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* Right Side - Form */
+.login-form-section {
+    flex: 0 0 500px;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.auth-box-modern {
+    width: 100%;
+    max-width: 380px;
+}
+
+.auth-header {
+    margin-bottom: 40px;
+}
+
+.auth-header h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.auth-header p {
+    color: #64748b;
+}
+
+.modern-input-group {
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.modern-input-group label {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    background: #0f172a;
+    padding: 0 4px;
+}
+
+.modern-input-group input:focus ~ label,
+.modern-input-group input:not(:placeholder-shown) ~ label {
+    top: 0;
+    font-size: 0.8rem;
+    color: #3b82f6;
+}
+
+.modern-input-group input {
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.modern-input-group input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.btn-modern {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+}
+
+.btn-modern:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.auth-footer {
+    margin-top: 32px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.auth-footer a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .login-visual {
+        display: none;
+    }
+    
+    .login-form-section {
+        flex: 1;
+        border-left: none;
+    }
+    
+    .auth-box-modern {
+        max-width: 420px;
+    }
+}
+
 @media (max-width: 768px) {
     .team-options {
         grid-template-columns: 1fr;

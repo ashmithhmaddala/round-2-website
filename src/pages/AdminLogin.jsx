@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaLock, FaUser } from 'react-icons/fa'
+import { FaShieldAlt, FaLock, FaUser, FaCrown } from 'react-icons/fa'
 import { adminLogin, setAdminAuth } from '../utils/api'
 
 function AdminLogin() {
@@ -13,17 +13,14 @@ function AdminLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
     if (!username || !password) {
       setError('Please fill in all fields')
       return
     }
-
     setLoading(true)
     try {
       const result = await adminLogin(username, password)
       setAdminAuth(true)
-      // Store admin info
       localStorage.setItem('currentAdminUsername', result.admin.username)
       localStorage.setItem('currentAdminRole', result.admin.role)
       navigate('/admin')
@@ -35,398 +32,265 @@ function AdminLogin() {
   }
 
   return (
-    <div className="admin-login-container">
-      <div className="admin-login-bg">
-        <div className="admin-particles"></div>
-        <div className="admin-particles"></div>
-        <div className="admin-particles"></div>
-      </div>
-
-      <div className="admin-login-card">
-        <div className="admin-logo">
-          <div className="shield-icon">
-            <FaShieldAlt />
-          </div>
-          <h1>Admin Portal</h1>
-          <p>Restricted Access</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="admin-form">
-          <div className="admin-input-group">
-            <FaUser className="input-icon" />
-            <input
-              type="text"
-              placeholder="Username or Email"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-              autoComplete="username"
-            />
-          </div>
-
-          <div className="admin-input-group">
-            <FaLock className="input-icon" />
-            <input
-              type="password"
-              placeholder="Admin Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              autoComplete="current-password"
-            />
-          </div>
-
-          {error && (
-            <div className="admin-error">
-              <span>⚠</span> {error}
+    <div className="admin-login-split">
+      {/* Left Side - Branding/Event */}
+      <div className="admin-login-visual">
+        <div className="admin-visual-content">
+          <h1>
+            <FaCrown style={{ marginRight: '15px', display: 'inline-block', verticalAlign: 'middle', color: '#3b82f6' }} />
+            Admin Portal
+          </h1>
+          <p className="admin-visual-subtitle">
+            <span style={{ color: '#3b82f6', fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '1.1rem' }}>Cache Me If You Can - Round 2</span>
+            Cybersecurity and Ethical Hacking Club, NHCE
+          </p>
+          <div className="admin-visual-features">
+            <div className="admin-feature-item">
+              <div className="admin-feature-icon"><FaShieldAlt /></div>
+              <span>Admin-Only Access</span>
             </div>
-          )}
-
-          <button type="submit" className="admin-btn" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner"></span> Authenticating...
-              </>
-            ) : (
-              <>
-                <FaLock /> Access Admin Panel
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="admin-footer">
-          <a href="/" className="back-link">← Back to Login</a>
+            <div className="admin-feature-item">
+              <div className="admin-feature-icon"><FaLock /></div>
+              <span>Manage Challenges & Teams</span>
+            </div>
+            <div className="admin-feature-item">
+              <div className="admin-feature-icon"><FaUser /></div>
+              <span>Monitor Event Progress</span>
+            </div>
+          </div>
         </div>
       </div>
-
+      {/* Right Side - Form */}
+      <div className="admin-login-form-section">
+        <div className="admin-auth-box-modern">
+          <div className="admin-auth-header">
+            <h2>Admin Login</h2>
+            <p>Enter your admin credentials to access the dashboard.</p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="admin-modern-input-group">
+              <input
+                type="text"
+                id="admin-username"
+                placeholder=" "
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+                autoComplete="username"
+                required
+              />
+              <label htmlFor="admin-username">Username or Email</label>
+            </div>
+            <div className="admin-modern-input-group">
+              <input
+                type="password"
+                id="admin-password"
+                placeholder=" "
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                autoComplete="current-password"
+                required
+              />
+              <label htmlFor="admin-password">Admin Password</label>
+            </div>
+            {error && (
+              <div className="admin-message error" style={{ display: 'block', marginBottom: 16 }}>
+                <span style={{ marginRight: 8 }}>⚠</span> {error}
+              </div>
+            )}
+            <button type="submit" className="admin-btn-modern" disabled={loading}>
+              {loading ? 'Authenticating...' : 'Access Admin Panel'}
+            </button>
+          </form>
+          <div className="admin-auth-footer">
+            <a href="/" className="admin-back-link">← Back to User Login</a>
+          </div>
+        </div>
+      </div>
       <style jsx="true">{`
-        .admin-login-container {
+        .admin-login-split {
           min-height: 100vh;
+          width: 100vw;
+          display: flex;
+          align-items: stretch;
+          background: #0f172a;
+        }
+        .admin-login-visual {
+          flex: 1;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.97) 0%, rgba(30, 41, 59, 0.97) 100%),
+            url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80');
+          background-size: cover;
+          background-position: center;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 60px;
+        }
+        .admin-visual-content {
+          max-width: 520px;
+          z-index: 2;
+        }
+        .admin-visual-content h1 {
+          font-size: 2.7rem;
+          font-weight: 800;
+          line-height: 1.1;
+          margin-bottom: 24px;
+          color: #fff;
+          letter-spacing: -1px;
+        }
+        .admin-visual-subtitle {
+          font-size: 1.1rem;
+          color: #94a3b8;
+          line-height: 1.6;
+          margin-bottom: 36px;
+        }
+        .admin-visual-features {
+          display: grid;
+          gap: 18px;
+        }
+        .admin-feature-item {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          color: #e2e8f0;
+          font-weight: 500;
+        }
+        .admin-feature-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: rgba(59, 130, 246, 0.13);
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 20px;
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2d1b3d 100%);
+          color: #3b82f6;
+          border: 1px solid rgba(59, 130, 246, 0.18);
         }
-
-        .admin-login-bg {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          overflow: hidden;
-        }
-
-        .admin-particles {
-          position: absolute;
-          width: 300px;
-          height: 300px;
-          border-radius: 50%;
-          filter: blur(60px);
-          opacity: 0.15;
-          animation: float 20s ease-in-out infinite;
-        }
-
-        .admin-particles:nth-child(1) {
-          background: linear-gradient(45deg, #ff4545, #ff0066);
-          top: -100px;
-          left: -100px;
-          animation-delay: 0s;
-        }
-
-        .admin-particles:nth-child(2) {
-          background: linear-gradient(45deg, #ff8a00, #ff4545);
-          bottom: -100px;
-          right: -100px;
-          animation-delay: 7s;
-        }
-
-        .admin-particles:nth-child(3) {
-          background: linear-gradient(45deg, #d63031, #ff6b6b);
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          animation-delay: 14s;
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(100px, -100px) scale(1.1); }
-          66% { transform: translate(-50px, 100px) scale(0.9); }
-        }
-
-        .admin-login-card {
-          background: rgba(20, 25, 45, 0.85);
-          backdrop-filter: blur(20px);
-          border-radius: 24px;
-          padding: 50px 40px;
-          width: 100%;
-          max-width: 450px;
-          box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(255, 69, 69, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-          position: relative;
-          z-index: 1;
-          border: 2px solid rgba(255, 69, 69, 0.3);
-          animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .admin-logo {
-          text-align: center;
-          margin-bottom: 40px;
-        }
-
-        .shield-icon {
-          display: inline-flex;
+        .admin-login-form-section {
+          flex: 0 0 480px;
+          background: #0f172a;
+          display: flex;
           align-items: center;
           justify-content: center;
-          width: 80px;
-          height: 80px;
-          margin: 0 auto 20px;
-          background: linear-gradient(135deg, #ff4545 0%, #ff0066 100%);
-          border-radius: 20px;
-          box-shadow: 
-            0 10px 30px rgba(255, 69, 69, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          position: relative;
+          padding: 40px 24px;
+          border-left: 1px solid rgba(255,255,255,0.04);
         }
-
-        .shield-icon::before {
-          content: '';
-          position: absolute;
-          inset: -3px;
-          border-radius: 20px;
-          background: linear-gradient(135deg, #ff4545, #ff0066);
-          opacity: 0.5;
-          filter: blur(10px);
-          z-index: -1;
+        .admin-auth-box-modern {
+          width: 100%;
+          max-width: 370px;
         }
-
-        .shield-icon svg {
-          font-size: 40px;
-          color: white;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        .admin-auth-header {
+          margin-bottom: 36px;
         }
-
-        .admin-logo h1 {
-          font-size: 32px;
+        .admin-auth-header h2 {
+          font-size: 2rem;
           font-weight: 700;
-          margin: 0 0 8px 0;
-          background: linear-gradient(135deg, #ff4545, #ff8a00);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          text-shadow: 0 0 30px rgba(255, 69, 69, 0.3);
+          color: #fff;
+          margin-bottom: 8px;
         }
-
-        .admin-logo p {
-          color: #ff6b6b;
-          font-weight: 600;
-          font-size: 14px;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          margin: 0;
+        .admin-auth-header p {
+          color: #64748b;
         }
-
-        .admin-form {
-          margin-bottom: 25px;
-        }
-
-        .admin-input-group {
+        .admin-modern-input-group {
+          margin-bottom: 22px;
           position: relative;
-          margin-bottom: 20px;
         }
-
-        .admin-input-group .input-icon {
+        .admin-modern-input-group label {
           position: absolute;
-          left: 18px;
+          left: 16px;
           top: 50%;
           transform: translateY(-50%);
-          color: #ff6b6b;
-          font-size: 18px;
-          z-index: 1;
-          transition: all 0.3s ease;
+          color: #64748b;
+          pointer-events: none;
+          transition: all 0.2s ease;
+          background: #0f172a;
+          padding: 0 4px;
         }
-
-        .admin-input-group input {
-          width: 100%;
-          padding: 16px 18px 16px 52px;
-          background: rgba(10, 15, 30, 0.6);
-          border: 2px solid rgba(255, 69, 69, 0.2);
-          border-radius: 12px;
-          color: white;
-          font-size: 15px;
-          transition: all 0.3s ease;
-          outline: none;
+        .admin-modern-input-group input:focus ~ label,
+        .admin-modern-input-group input:not(:placeholder-shown) ~ label {
+          top: 0;
+          font-size: 0.8rem;
+          color: #3b82f6;
         }
-
-        .admin-input-group input::placeholder {
-          color: rgba(255, 255, 255, 0.4);
-        }
-
-        .admin-input-group input:focus {
-          background: rgba(10, 15, 30, 0.8);
-          border-color: #ff4545;
-          box-shadow: 
-            0 0 0 4px rgba(255, 69, 69, 0.1),
-            0 0 20px rgba(255, 69, 69, 0.2);
-        }
-
-        .admin-input-group input:focus + .input-icon {
-          color: #ff4545;
-          transform: translateY(-50%) scale(1.1);
-        }
-
-        .admin-input-group input:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .admin-error {
-          background: linear-gradient(135deg, rgba(255, 69, 69, 0.15), rgba(255, 0, 102, 0.15));
-          border: 2px solid rgba(255, 69, 69, 0.4);
-          border-radius: 12px;
-          color: #ff6b6b;
-          padding: 14px 18px;
-          margin-bottom: 20px;
-          font-size: 14px;
-          font-weight: 500;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          animation: shake 0.5s ease-in-out;
-        }
-
-        .admin-error span {
-          font-size: 18px;
-        }
-
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-10px); }
-          75% { transform: translateX(10px); }
-        }
-
-        .admin-btn {
+        .admin-modern-input-group input {
           width: 100%;
           padding: 16px;
-          background: linear-gradient(135deg, #ff4545 0%, #ff0066 100%);
+          background: transparent;
+          border: 1.5px solid #334155;
+          border-radius: 12px;
+          color: #fff;
+          font-size: 1rem;
+          transition: all 0.2s;
+        }
+        .admin-modern-input-group input:focus {
+          border-color: #3b82f6;
+          outline: none;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.09);
+        }
+        .admin-btn-modern {
+          width: 100%;
+          padding: 16px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
           border: none;
           border-radius: 12px;
-          color: white;
-          font-size: 16px;
+          font-size: 1rem;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          box-shadow: 
-            0 4px 15px rgba(255, 69, 69, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          position: relative;
-          overflow: hidden;
+          transition: all 0.3s;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
         }
-
-        .admin-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s ease;
-        }
-
-        .admin-btn:hover::before {
-          left: 100%;
-        }
-
-        .admin-btn:hover:not(:disabled) {
+        .admin-btn-modern:hover {
           transform: translateY(-2px);
-          box-shadow: 
-            0 8px 25px rgba(255, 69, 69, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
         }
-
-        .admin-btn:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .admin-btn:disabled {
+        .admin-btn-modern:disabled {
           opacity: 0.7;
           cursor: not-allowed;
+          transform: none;
         }
-
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .admin-footer {
+        .admin-auth-footer {
+          margin-top: 28px;
           text-align: center;
-          padding-top: 20px;
-          border-top: 1px solid rgba(255, 69, 69, 0.1);
+          color: #64748b;
+          font-size: 0.95rem;
         }
-
-        .back-link {
-          color: rgba(255, 255, 255, 0.5);
+        .admin-back-link {
+          color: #3b82f6;
           text-decoration: none;
-          font-size: 14px;
-          font-weight: 500;
-          transition: all 0.3s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
+          font-weight: 600;
+          margin-left: 4px;
         }
-
-        .back-link:hover {
-          color: #ff6b6b;
-          transform: translateX(-3px);
+        .admin-back-link:hover {
+          text-decoration: underline;
         }
-
-        @media (max-width: 600px) {
-          .admin-login-card {
-            padding: 40px 30px;
+        .admin-message {
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-top: 10px;
+          display: none;
+          animation: slideIn 0.3s;
+        }
+        .admin-message.error {
+          background: rgba(255, 51, 102, 0.1);
+          border: 1px solid #ef4444;
+          color: #ef4444;
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 1024px) {
+          .admin-login-visual {
+            display: none;
           }
-
-          .shield-icon {
-            width: 70px;
-            height: 70px;
+          .admin-login-form-section {
+            flex: 1;
+            border-left: none;
           }
-
-          .shield-icon svg {
-            font-size: 35px;
-          }
-
-          .admin-logo h1 {
-            font-size: 28px;
+          .admin-auth-box-modern {
+            max-width: 420px;
           }
         }
       `}</style>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt } from 'react-icons/fa'
+import { FaShieldAlt, FaLock, FaGlobe, FaCode } from 'react-icons/fa'
 import { signup, login, setCurrentUser } from '../utils/api'
 
 function Login() {
@@ -75,123 +75,128 @@ function Login() {
   }
 
   return (
-    <div className="container">
-      <div className="auth-box">
-        <div className="logo">
-          <h1>
-            <FaShieldAlt /> OSINT & Crypto CTF
-          </h1>
-          <p>Challenge Your Mind</p>
+    <div className="login-page">
+      <div className="login-split">
+        {/* Left Side - Visuals */}
+        <div className="login-visual">
+          <div className="visual-content">
+            <h1>
+              <FaShieldAlt style={{ marginRight: '15px', display: 'inline-block', verticalAlign: 'middle' }} /> 
+              Cache Me If You Can
+            </h1>
+            <p className="visual-subtitle">
+              <span style={{ color: '#60a5fa', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>ROUND 2</span>
+              Hosted by the Cybersecurity and Ethical Hacking Club, NHCE
+            </p>
+            <div className="visual-features">
+              <div className="feature-item">
+                <div className="feature-icon"><FaGlobe /></div>
+                <span>Global Intelligence Challenges</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon"><FaLock /></div>
+                <span>Advanced Cryptography Puzzles</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon"><FaCode /></div>
+                <span>Real-world Scenarios</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {isLogin ? (
-          <div className="form-container active">
-            <h2>Login</h2>
-            <form onSubmit={handleLogin}>
-              <div className="input-group">
-                <label htmlFor="loginUsername">Username</label>
-                <input
-                  type="text"
-                  id="loginUsername"
-                  value={loginData.username}
-                  onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="loginPassword">Password</label>
-                <input
-                  type="password"
-                  id="loginPassword"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-            <p className="toggle-form">
-              Don't have an account?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); setIsLogin(false); }}>
-                Sign up
-              </a>
-            </p>
-            <p className="toggle-form" style={{ marginTop: '10px', fontSize: '0.85rem' }}>
-              <a href="/admin-login" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Admin Access →
-              </a>
-            </p>
-          </div>
-        ) : (
-          <div className="form-container active">
-            <h2>Sign Up</h2>
-            <form onSubmit={handleSignup}>
-              <div className="input-group">
-                <label htmlFor="signupUsername">Username</label>
-                <input
-                  type="text"
-                  id="signupUsername"
-                  value={signupData.username}
-                  onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="signupEmail">Email</label>
-                <input
-                  type="email"
-                  id="signupEmail"
-                  value={signupData.email}
-                  onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="signupPassword">Password</label>
-                <input
-                  type="password"
-                  id="signupPassword"
-                  value={signupData.password}
-                  onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="signupConfirmPassword">Confirm Password</label>
-                <input
-                  type="password"
-                  id="signupConfirmPassword"
-                  value={signupData.confirmPassword}
-                  onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Creating account...' : 'Sign Up'}
-              </button>
-            </form>
-            <p className="toggle-form">
-              Already have an account?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); setIsLogin(true); }}>
-                Login
-              </a>
-            </p>
-          </div>
-        )}
+        {/* Right Side - Form */}
+        <div className="login-form-section">
+          <div className="auth-box-modern">
+            <div className="auth-header">
+              <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+              <p>{isLogin ? 'Enter your credentials to access your dashboard.' : 'Start your journey into OSINT today.'}</p>
+            </div>
 
-        {message.text && (
-          <div className={`message ${message.type}`} style={{ display: 'block' }}>
-            {message.text}
+            <form onSubmit={isLogin ? handleLogin : handleSignup}>
+              <div className="modern-input-group">
+                <input
+                  type="text"
+                  id="username"
+                  placeholder=" "
+                  value={isLogin ? loginData.username : signupData.username}
+                  onChange={(e) => isLogin ? setLoginData({ ...loginData, username: e.target.value }) : setSignupData({ ...signupData, username: e.target.value })}
+                  required
+                  autoComplete="username"
+                />
+                <label htmlFor="username">Username</label>
+              </div>
+
+              {!isLogin && (
+                <div className="modern-input-group">
+                  <input
+                    type="email"
+                    id="email"
+                    placeholder=" "
+                    value={signupData.email}
+                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                    required
+                    autoComplete="email"
+                  />
+                  <label htmlFor="email">Email Address</label>
+                </div>
+              )}
+
+              <div className="modern-input-group">
+                <input
+                  type="password"
+                  id="password"
+                  placeholder=" "
+                  value={isLogin ? loginData.password : signupData.password}
+                  onChange={(e) => isLogin ? setLoginData({ ...loginData, password: e.target.value }) : setSignupData({ ...signupData, password: e.target.value })}
+                  required
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                />
+                <label htmlFor="password">Password</label>
+              </div>
+
+              {!isLogin && (
+                <div className="modern-input-group">
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    placeholder=" "
+                    value={signupData.confirmPassword}
+                    onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <label htmlFor="confirmPassword">Confirm Password</label>
+                </div>
+              )}
+
+              <button type="submit" className="btn-modern" disabled={loading}>
+                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+              </button>
+            </form>
+
+            <div className="auth-footer">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}
+              <a href="#" onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }}>
+                {isLogin ? 'Sign up' : 'Log in'}
+              </a>
+            </div>
+
+            {isLogin && (
+              <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                <a href="/admin-login" style={{ color: '#475569', fontSize: '0.85rem', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = '#94a3b8'} onMouseOut={(e) => e.target.style.color = '#475569'}>
+                  Admin Access →
+                </a>
+              </div>
+            )}
+
+            {message.text && (
+              <div className={`message ${message.type}`} style={{ display: 'block', marginTop: '24px' }}>
+                {message.text}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

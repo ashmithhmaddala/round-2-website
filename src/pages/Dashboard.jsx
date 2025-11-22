@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket } from 'react-icons/fa'
 import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam } from '../utils/api'
+import CompetitionTimer from '../components/CompetitionTimer'
+import AnnouncementBanner from '../components/AnnouncementBanner'
 
 function Dashboard() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -143,6 +145,14 @@ function Dashboard() {
         </div>
       </header>
       <main className="dashboard-main-upg">
+        {/* Competition Timer */}
+        <div style={{ maxWidth: '1200px', margin: '0 auto 24px auto', padding: '0 16px' }}>
+          <CompetitionTimer />
+        </div>
+
+        {/* Announcements */}
+        <AnnouncementBanner />
+
         {!hasTeam ? (
           <section className="dashboard-cards-upg" aria-label="Team Management">
             <article className="dashboard-card-upg" aria-labelledby="create-team-heading">

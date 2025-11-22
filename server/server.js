@@ -13,6 +13,8 @@ import Team from './models/Team.js';
 import Challenge from './models/Challenge.js';
 import Admin from './models/Admin.js';
 import Solve from './models/Solve.js';
+import Announcement from './models/Announcement.js';
+import Competition from './models/Competition.js';
 
 dotenv.config();
 
@@ -65,6 +67,7 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('✅ Connected to MongoDB Atlas');
     initializeDefaultChallenges();
     initializeSuperAdmin();
+    initializeCompetition();
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
@@ -90,6 +93,23 @@ async function initializeSuperAdmin() {
     });
     await superAdmin.save();
     console.log('✅ Super admin initialized');
+  }
+}
+
+// Initialize competition settings if none exist
+async function initializeCompetition() {
+  const competitionCount = await Competition.countDocuments();
+  if (competitionCount === 0) {
+    const now = new Date();
+    const competition = new Competition({
+      name: 'CTF Competition',
+      description: 'Capture The Flag Competition',
+      startTime: new Date(now.getTime() + 24 * 60 * 60 * 1000), // 24 hours from now
+      endTime: new Date(now.getTime() + 48 * 60 * 60 * 1000), // 48 hours from now
+      status: 'upcoming'
+    });
+    await competition.save();
+    console.log('✅ Competition settings initialized');
   }
 }
 
@@ -201,12 +221,17 @@ async function initializeDefaultChallenges() {
 // Signup
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
     // Check if user exists
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      return res.status(400).json({ error: 'Username already exists' });
+      if (existingUser.username === username) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+      if (existingUser.email === email) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
     }
 
     // Hash password
@@ -215,6 +240,7 @@ app.post('/api/auth/signup', async (req, res) => {
     // Create user
     const user = new User({
       username,
+      email,
       password: hashedPassword
     });
 
@@ -224,6 +250,7 @@ app.post('/api/auth/signup', async (req, res) => {
       success: true,
       user: {
         username: user.username,
+        email: user.email,
         teamId: user.teamId,
         solvedChallenges: user.solvedChallenges
       }
@@ -238,8 +265,8 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ username });
+    // Find user by username or email
+    const user = await User.findOne({ $or: [{ username }, { email: username }] });
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
@@ -254,6 +281,7 @@ app.post('/api/auth/login', async (req, res) => {
       success: true,
       user: {
         username: user.username,
+        email: user.email,
         teamId: user.teamId,
         solvedChallenges: user.solvedChallenges
       }
@@ -285,10 +313,17 @@ app.get('/api/auth/user/:username', async (req, res) => {
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
     const user = await User.findOne({ email }) || await Admin.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        error: 'No account found with this email address. Please ensure you signed up with this email or create a new account.' 
+      });
     }
 
     // Generate reset token
@@ -308,9 +343,10 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.</p>`
     });
 
-    res.json({ success: true, message: 'Password reset email sent' });
+    res.json({ success: true, message: 'Password reset email sent successfully!' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
   }
 });
 
@@ -588,9 +624,54 @@ app.post('/api/challenges/submit', async (req, res) => {
   try {
     const { challengeId, flag, username, teamCode } = req.body;
 
+    // Check competition status
+    const competition = await Competition.findOne().sort({ createdAt: -1 });
+    if (competition) {
+      const now = new Date();
+      
+      // Auto-update competition status
+      if (competition.status === 'upcoming' && now >= competition.startTime) {
+        competition.status = 'live';
+        await competition.save();
+      } else if (competition.status === 'live' && competition.freezeTime && now >= competition.freezeTime) {
+        competition.status = 'frozen';
+        await competition.save();
+      } else if ((competition.status === 'live' || competition.status === 'frozen') && now >= competition.endTime) {
+        competition.status = 'ended';
+        await competition.save();
+      }
+
+      // Prevent submissions if competition hasn't started
+      if (competition.status === 'upcoming') {
+        return res.status(403).json({ 
+          error: 'Competition has not started yet',
+          startsAt: competition.startTime 
+        });
+      }
+
+      // Prevent submissions if competition has ended (unless late submissions allowed)
+      if (competition.status === 'ended' && !competition.allowLateSubmissions) {
+        return res.status(403).json({ 
+          error: 'Competition has ended',
+          endedAt: competition.endTime 
+        });
+      }
+
+      // Allow submissions during live and frozen periods
+      // (frozen only affects scoreboard visibility, not submissions)
+    }
+
     const challenge = await Challenge.findOne({ id: challengeId });
     if (!challenge) {
       return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    // Check if challenge is disabled
+    if (challenge.disabled) {
+      return res.status(403).json({ 
+        error: 'This challenge is currently disabled',
+        message: 'This challenge is temporarily unavailable. Please try again later.'
+      });
     }
 
     // Check flag using bcrypt
@@ -620,6 +701,25 @@ app.post('/api/challenges/submit', async (req, res) => {
     });
     await solve.save();
 
+    // Check for first blood
+    let isFirstBlood = false;
+    if (!challenge.firstBlood || !challenge.firstBlood.teamCode) {
+      if (team) {
+        challenge.firstBlood = {
+          teamCode: team.code,
+          teamName: team.name,
+          solvedAt: new Date()
+        };
+        isFirstBlood = true;
+      }
+    }
+
+    // Update challenge solvedBy
+    if (!challenge.solvedBy.includes(teamCode)) {
+      challenge.solvedBy.push(teamCode);
+    }
+    await challenge.save();
+
     // Update user
     user.solvedChallenges.push(challengeId);
     await user.save();
@@ -631,7 +731,11 @@ app.post('/api/challenges/submit', async (req, res) => {
       await team.save();
     }
 
-    res.json({ success: true, message: 'Challenge solved successfully' });
+    res.json({ 
+      success: true, 
+      message: isFirstBlood ? '🎉 First Blood! Challenge solved!' : 'Challenge solved successfully',
+      firstBlood: isFirstBlood
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -925,6 +1029,597 @@ logs.push({ method: 'TEST', url: '/api/test', timestamp: new Date().toISOString(
 app.get('/api/logs', (req, res) => {
   console.log('Logs requested:', logs);
   res.json(logs);
+});
+
+// Migration endpoint - Add email to existing users (ONE-TIME USE)
+app.post('/api/admin/migrate-add-emails', async (req, res) => {
+  try {
+    // Find all users without email
+    const usersWithoutEmail = await User.find({ email: { $exists: false } });
+    
+    if (usersWithoutEmail.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: 'All users already have email addresses',
+        updated: 0 
+      });
+    }
+
+    // Add default email for each user (username@placeholder.com)
+    const updatePromises = usersWithoutEmail.map(user => {
+      user.email = `${user.username}@placeholder.com`;
+      return user.save();
+    });
+
+    await Promise.all(updatePromises);
+
+    res.json({ 
+      success: true, 
+      message: `Added email addresses to ${usersWithoutEmail.length} users. Users should update their emails.`,
+      updated: usersWithoutEmail.length,
+      usernames: usersWithoutEmail.map(u => u.username)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Migration endpoint - Add disabled field to existing challenges (ONE-TIME USE)
+app.post('/api/admin/migrate-add-disabled', async (req, res) => {
+  try {
+    const result = await Challenge.updateMany(
+      { disabled: { $exists: false } },
+      { $set: { disabled: false } }
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Added disabled field to ${result.modifiedCount} challenges`,
+      updated: result.modifiedCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update user email endpoint
+app.put('/api/auth/update-email', async (req, res) => {
+  try {
+    const { username, newEmail } = req.body;
+    
+    if (!username || !newEmail) {
+      return res.status(400).json({ error: 'Username and new email are required' });
+    }
+
+    // Check if email is already in use
+    const existingUser = await User.findOne({ email: newEmail });
+    if (existingUser && existingUser.username !== username) {
+      return res.status(400).json({ error: 'Email already in use by another user' });
+    }
+
+    // Update user email
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.email = newEmail;
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Email updated successfully',
+      user: {
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete all users endpoint (ADMIN ONLY - USE WITH CAUTION)
+app.delete('/api/admin/delete-all-users', async (req, res) => {
+  try {
+    const result = await User.deleteMany({});
+    res.json({ 
+      success: true, 
+      message: `Deleted ${result.deletedCount} users`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Migration: Add visible field to existing challenges
+app.post('/api/admin/migrate-challenge-visibility', async (req, res) => {
+  try {
+    const result = await Challenge.updateMany(
+      { visible: { $exists: false } },
+      { $set: { visible: true } }
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Added visibility field to ${result.modifiedCount} challenges`,
+      updated: result.modifiedCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== REAL-TIME ANALYTICS ENDPOINTS =====
+
+// Get real-time analytics data
+app.get('/api/admin/analytics/realtime', async (req, res) => {
+  try {
+    const [teams, challenges, solves] = await Promise.all([
+      Team.find(),
+      Challenge.find(),
+      Solve.find().populate('team').populate('challenge').sort({ solvedAt: -1 }).limit(20)
+    ]);
+
+    // Calculate metrics
+    const totalTeams = teams.length;
+    const totalPlayers = teams.reduce((sum, team) => sum + team.members.length, 0);
+    const totalChallenges = challenges.length;
+    const visibleChallenges = challenges.filter(c => c.visible).length;
+    const totalSolves = solves.length;
+    
+    // Recent solve attempts (last 10)
+    const recentSolves = solves.slice(0, 10).map(solve => ({
+      teamName: solve.team.name,
+      teamCode: solve.team.code,
+      challengeTitle: solve.challenge.title,
+      challengeId: solve.challenge.id,
+      points: solve.challenge.points,
+      solvedAt: solve.solvedAt,
+      category: solve.challenge.category,
+      difficulty: solve.challenge.difficulty
+    }));
+
+    // Active teams (teams with solves in last 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentTeamCodes = solves
+      .filter(s => s.solvedAt >= fiveMinutesAgo)
+      .map(s => s.team.code);
+    const activeTeams = [...new Set(recentTeamCodes)].length;
+
+    // Challenge popularity (most attempted)
+    const challengeAttempts = {};
+    challenges.forEach(ch => {
+      challengeAttempts[ch.id] = ch.solvedBy.length;
+    });
+    const mostPopular = challenges
+      .map(ch => ({
+        id: ch.id,
+        title: ch.title,
+        attempts: ch.solvedBy.length,
+        category: ch.category
+      }))
+      .sort((a, b) => b.attempts - a.attempts)
+      .slice(0, 5);
+
+    // Solve rate by difficulty
+    const solvesByDifficulty = {
+      easy: 0,
+      medium: 0,
+      hard: 0
+    };
+    challenges.forEach(ch => {
+      if (ch.solvedBy.length > 0) {
+        solvesByDifficulty[ch.difficulty] += ch.solvedBy.length;
+      }
+    });
+
+    // First bloods
+    const firstBloods = challenges
+      .filter(ch => ch.firstBlood && ch.firstBlood.teamCode)
+      .map(ch => ({
+        challengeTitle: ch.title,
+        teamName: ch.firstBlood.teamName,
+        teamCode: ch.firstBlood.teamCode,
+        solvedAt: ch.firstBlood.solvedAt,
+        points: ch.points
+      }))
+      .sort((a, b) => new Date(b.solvedAt) - new Date(a.solvedAt))
+      .slice(0, 10);
+
+    res.json({
+      metrics: {
+        totalTeams,
+        totalPlayers,
+        totalChallenges,
+        visibleChallenges,
+        totalSolves,
+        activeTeams
+      },
+      recentSolves,
+      mostPopular,
+      solvesByDifficulty,
+      firstBloods,
+      lastUpdated: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get challenge statistics
+app.get('/api/admin/analytics/challenges', async (req, res) => {
+  try {
+    const challenges = await Challenge.find();
+    
+    const stats = challenges.map(ch => ({
+      id: ch.id,
+      title: ch.title,
+      category: ch.category,
+      difficulty: ch.difficulty,
+      points: ch.points,
+      totalSolves: ch.solvedBy.length,
+      visible: ch.visible,
+      firstBlood: ch.firstBlood,
+      solveRate: challenges.length > 0 ? (ch.solvedBy.length / challenges.length * 100).toFixed(1) : 0,
+      createdAt: ch.createdAt
+    }));
+
+    res.json({ challenges: stats });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle challenge visibility
+app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const newVisibility = !challenge.visible;
+    
+    await Challenge.updateOne(
+      { id: req.params.id },
+      { $set: { visible: newVisibility } }
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Challenge ${newVisibility ? 'shown' : 'hidden'}`,
+      challenge: {
+        id: challenge.id,
+        visible: newVisibility
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle challenge disabled status (admin)
+app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const newDisabledStatus = !challenge.disabled;
+    
+    await Challenge.updateOne(
+      { id: req.params.id },
+      { $set: { disabled: newDisabledStatus } }
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Challenge ${newDisabledStatus ? 'disabled' : 'enabled'}`,
+      challenge: {
+        id: challenge.id,
+        disabled: newDisabledStatus
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get solve timeline (for graphs)
+app.get('/api/admin/analytics/timeline', async (req, res) => {
+  try {
+    const solves = await Solve.find()
+      .populate('challenge')
+      .sort({ solvedAt: 1 });
+
+    // Group by hour
+    const timeline = {};
+    solves.forEach(solve => {
+      const hour = new Date(solve.solvedAt).toISOString().slice(0, 13) + ':00:00';
+      if (!timeline[hour]) {
+        timeline[hour] = { total: 0, easy: 0, medium: 0, hard: 0 };
+      }
+      timeline[hour].total++;
+      timeline[hour][solve.challenge.difficulty]++;
+    });
+
+    const timelineArray = Object.entries(timeline).map(([time, counts]) => ({
+      time,
+      ...counts
+    }));
+
+    res.json({ timeline: timelineArray });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== ANNOUNCEMENT SYSTEM =====
+
+// Get all announcements (public - for users)
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const now = new Date();
+    const announcements = await Announcement.find({
+      active: true,
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: null },
+        { expiresAt: { $gt: now } }
+      ]
+    }).sort({ pinned: -1, createdAt: -1 });
+
+    res.json({ announcements });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all announcements (admin - includes inactive)
+app.get('/api/admin/announcements', async (req, res) => {
+  try {
+    const announcements = await Announcement.find()
+      .sort({ pinned: -1, createdAt: -1 });
+    res.json({ announcements });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create announcement
+app.post('/api/admin/announcements', async (req, res) => {
+  try {
+    const { title, message, type, priority, pinned, expiresAt, createdBy } = req.body;
+    
+    if (!title || !message || !createdBy) {
+      return res.status(400).json({ error: 'Title, message, and createdBy are required' });
+    }
+
+    const announcement = new Announcement({
+      title,
+      message,
+      type: type || 'info',
+      priority: priority || 'medium',
+      pinned: pinned || false,
+      expiresAt: expiresAt || null,
+      createdBy
+    });
+
+    await announcement.save();
+    res.json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update announcement
+app.put('/api/admin/announcements/:id', async (req, res) => {
+  try {
+    const { title, message, type, priority, pinned, expiresAt, active } = req.body;
+    
+    const announcement = await Announcement.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          title,
+          message,
+          type,
+          priority,
+          pinned,
+          expiresAt,
+          active
+        }
+      },
+      { new: true }
+    );
+
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete announcement
+app.delete('/api/admin/announcements/:id', async (req, res) => {
+  try {
+    const announcement = await Announcement.findByIdAndDelete(req.params.id);
+    
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ success: true, message: 'Announcement deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle announcement active status
+app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
+  try {
+    const announcement = await Announcement.findById(req.params.id);
+    
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    announcement.active = !announcement.active;
+    await announcement.save();
+
+    res.json({ 
+      success: true, 
+      message: `Announcement ${announcement.active ? 'activated' : 'deactivated'}`,
+      announcement 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle announcement pin status
+app.patch('/api/admin/announcements/:id/pin', async (req, res) => {
+  try {
+    const announcement = await Announcement.findById(req.params.id);
+    
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    announcement.pinned = !announcement.pinned;
+    await announcement.save();
+
+    res.json({ 
+      success: true, 
+      message: `Announcement ${announcement.pinned ? 'pinned' : 'unpinned'}`,
+      announcement 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== COMPETITION ENDPOINTS ====================
+
+// Get current competition settings (public)
+app.get('/api/competition', async (req, res) => {
+  try {
+    const competition = await Competition.findOne().sort({ createdAt: -1 });
+    if (!competition) {
+      return res.status(404).json({ error: 'No competition configured' });
+    }
+
+    // Auto-update status based on current time
+    const now = new Date();
+    let newStatus = competition.status;
+
+    if (competition.status === 'upcoming' && now >= competition.startTime) {
+      newStatus = 'live';
+    } else if (competition.status === 'live' && competition.freezeTime && now >= competition.freezeTime) {
+      newStatus = 'frozen';
+    } else if ((competition.status === 'live' || competition.status === 'frozen') && now >= competition.endTime) {
+      newStatus = 'ended';
+    }
+
+    if (newStatus !== competition.status) {
+      competition.status = newStatus;
+      await competition.save();
+    }
+
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get competition settings (admin)
+app.get('/api/admin/competition', async (req, res) => {
+  try {
+    const competition = await Competition.findOne().sort({ createdAt: -1 });
+    if (!competition) {
+      return res.status(404).json({ error: 'No competition configured' });
+    }
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update competition settings (admin)
+app.put('/api/admin/competition', async (req, res) => {
+  try {
+    const { name, description, startTime, endTime, freezeTime, allowLateSubmissions, showScoreboard } = req.body;
+    
+    const competition = await Competition.findOne().sort({ createdAt: -1 });
+    if (!competition) {
+      return res.status(404).json({ error: 'No competition configured' });
+    }
+
+    // Validate times
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const freeze = freezeTime ? new Date(freezeTime) : null;
+
+    if (start >= end) {
+      return res.status(400).json({ error: 'Start time must be before end time' });
+    }
+
+    if (freeze && (freeze <= start || freeze >= end)) {
+      return res.status(400).json({ error: 'Freeze time must be between start and end time' });
+    }
+
+    // Update fields
+    if (name) competition.name = name;
+    if (description) competition.description = description;
+    if (startTime) competition.startTime = start;
+    if (endTime) competition.endTime = end;
+    if (freezeTime !== undefined) competition.freezeTime = freeze;
+    if (allowLateSubmissions !== undefined) competition.allowLateSubmissions = allowLateSubmissions;
+    if (showScoreboard !== undefined) competition.showScoreboard = showScoreboard;
+
+    await competition.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Competition settings updated',
+      competition 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update competition status manually (admin)
+app.put('/api/admin/competition/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['upcoming', 'live', 'frozen', 'ended'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be: upcoming, live, frozen, or ended' });
+    }
+
+    const competition = await Competition.findOne().sort({ createdAt: -1 });
+    if (!competition) {
+      return res.status(404).json({ error: 'No competition configured' });
+    }
+
+    competition.status = status;
+    await competition.save();
+
+    res.json({ 
+      success: true, 
+      message: `Competition status updated to ${status}`,
+      competition 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Health check

@@ -46,6 +46,11 @@ function Login() {
       return
     }
 
+    if (!signupData.email || !/\S+@\S+\.\S+/.test(signupData.email)) {
+      showMessage('Please enter a valid email address.', 'error')
+      return
+    }
+
     if (signupData.password.length < 6) {
       showMessage('Password must be at least 6 characters long.', 'error')
       return
@@ -59,7 +64,7 @@ function Login() {
     setLoading(true)
 
     try {
-      await signup(signupData.username, signupData.password)
+      await signup(signupData.username, signupData.email, signupData.password)
       showMessage('Account created successfully! Please login.', 'success')
 
       setTimeout(() => {

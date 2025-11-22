@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch } from 'react-icons/fa'
+import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay } from 'react-icons/fa'
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
-import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword } from '../utils/api'
+import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled } from '../utils/api'
+import RealTimeMonitoring from './RealTimeMonitoring'
+import AnnouncementsManager from './AnnouncementsManager'
+import CompetitionManager from './CompetitionManager'
 import '../admin.css'
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend)
@@ -160,6 +163,28 @@ function Admin() {
     }
   }
 
+  const handleToggleVisibility = async (challengeId) => {
+    try {
+      await toggleChallengeVisibility(challengeId)
+      await loadData()
+      const challenge = challenges.find(c => c.id === challengeId)
+      showMessage(`Challenge ${challenge?.visible ? 'hidden' : 'shown'}!`, 'success')
+    } catch (error) {
+      showMessage('Failed to toggle visibility: ' + error.message, 'error')
+    }
+  }
+
+  const handleToggleDisabled = async (challengeId) => {
+    try {
+      await toggleChallengeDisabled(challengeId)
+      await loadData()
+      const challenge = challenges.find(c => c.id === challengeId)
+      showMessage(`Challenge ${challenge?.disabled ? 'enabled' : 'disabled'}!`, 'success')
+    } catch (error) {
+      showMessage('Failed to toggle disabled status: ' + error.message, 'error')
+    }
+  }
+
   const handleAddAdmin = () => {
     setShowAdminForm(true)
     setAdminFormData({ username: '', email: '', password: '' })
@@ -308,12 +333,14 @@ function Admin() {
   }
 
   const navigationItems = [
-    { name: 'Overview', path: '/admin' },
-    { name: 'Teams', path: '/admin/teams' },
-    { name: 'Challenges', path: '/admin/challenges' },
-    { name: 'Analytics', path: '/admin/analytics' },
-    { name: 'Admins', path: '/admin/admins' },
-    { name: 'Logging & Monitoring', path: '/admin/logging' },
+    { name: 'Overview', icon: FaChartLine },
+    { name: 'Real-Time', icon: FaBroadcastTower },
+    { name: 'Competition', icon: FaClock },
+    { name: 'Teams', icon: FaUsers },
+    { name: 'Challenges', icon: FaPuzzlePiece },
+    { name: 'Announcements', icon: FaBullhorn },
+    { name: 'Analytics', icon: FaChartLine },
+    { name: 'Admins', icon: FaShieldAlt }
   ];
 
   return (
@@ -346,10 +373,10 @@ function Admin() {
           {navigationItems.map((item) => (
             <button 
               key={item.name}
-              className={`sidebar-tab ${activeTab === item.name.toLowerCase() ? 'active' : ''}`} 
-              onClick={() => setActiveTab(item.name.toLowerCase())}
+              className={`sidebar-tab ${activeTab === item.name.toLowerCase().replace('-', '') ? 'active' : ''}`} 
+              onClick={() => setActiveTab(item.name.toLowerCase().replace('-', ''))}
             >
-              {item.name === 'Logging & Monitoring' ? <FaChartLine /> : item.name === 'Teams' ? <FaUsers /> : item.name === 'Challenges' ? <FaPuzzlePiece /> : item.name === 'Analytics' ? <FaChartLine /> : item.name === 'Admins' ? <FaShieldAlt /> : null}
+              <item.icon />
               <span>{item.name}</span>
             </button>
           ))}
@@ -367,11 +394,14 @@ function Admin() {
         <div className="admin-content">
           <div className="content-header">
             <div className="header-left">
-              <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+              <h2>{activeTab === 'realtime' ? 'Real-Time Monitoring' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
               <p className="header-subtitle">
                 {activeTab === 'overview' && 'System overview and key metrics'}
+                {activeTab === 'realtime' && 'Live competition analytics and activity tracking'}
+                {activeTab === 'competition' && 'Manage competition timer and control settings'}
                 {activeTab === 'teams' && `${filteredTeams.length} teams registered`}
                 {activeTab === 'challenges' && `${filteredChallenges.length} challenges available`}
+                {activeTab === 'announcements' && 'Broadcast messages to all participants'}
                 {activeTab === 'analytics' && 'Performance insights and statistics'}
                 {activeTab === 'admins' && `${admins.length} admin accounts`}
               </p>
@@ -380,6 +410,10 @@ function Admin() {
               <FaSync className={loading ? 'spinning' : ''} />
             </button>
           </div>
+
+          {activeTab === 'realtime' && <RealTimeMonitoring />}
+          {activeTab === 'competition' && <CompetitionManager />}
+          {activeTab === 'announcements' && <AnnouncementsManager />}
 
           {activeTab === 'overview' && (
           <div className="admin-section active">
@@ -671,6 +705,8 @@ function Admin() {
                     <th>Difficulty</th>
                     <th>Points</th>
                     <th>Solves</th>
+                    <th>First Blood</th>
+                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -695,6 +731,44 @@ function Admin() {
                       </td>
                       <td><strong>{ch.points}</strong></td>
                       <td>{ch.solvedBy?.length || 0}</td>
+                      <td>
+                        {ch.firstBlood?.teamName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+                            <FaTrophy style={{ color: '#fbbf24' }} />
+                            <span>{ch.firstBlood.teamName}</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#6b7280', fontSize: '13px' }}>-</span>
+                        )}
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <button 
+                            onClick={() => handleToggleVisibility(ch.id)}
+                            className="btn-icon"
+                            title={ch.visible ? 'Hide Challenge' : 'Show Challenge'}
+                            style={{
+                              background: ch.visible ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                              border: ch.visible ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                              color: ch.visible ? '#10b981' : '#ef4444'
+                            }}
+                          >
+                            {ch.visible ? <FaEye /> : <FaEyeSlash />}
+                          </button>
+                          <button 
+                            onClick={() => handleToggleDisabled(ch.id)}
+                            className="btn-icon"
+                            title={ch.disabled ? 'Enable Challenge' : 'Disable Challenge'}
+                            style={{
+                              background: ch.disabled ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                              border: ch.disabled ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                              color: ch.disabled ? '#ef4444' : '#10b981'
+                            }}
+                          >
+                            {ch.disabled ? <FaBan /> : <FaPlay />}
+                          </button>
+                        </div>
+                      </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="action-buttons">
                           <button 

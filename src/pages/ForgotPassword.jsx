@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import { API_URL } from '../utils/api';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -6,16 +8,22 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage('');
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await fetch(`${API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       const data = await response.json();
-      setMessage(data.message);
+      if (response.ok) {
+        setMessage(data.message || 'Password reset email sent successfully!');
+      } else {
+        setMessage(data.error || data.message || 'Failed to send reset email');
+      }
     } catch (error) {
-      setMessage('Error sending password reset email');
+      console.error('Forgot password error:', error);
+      setMessage('Error connecting to server. Please ensure the server is running.');
     }
   };
 

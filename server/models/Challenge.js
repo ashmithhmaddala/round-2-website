@@ -35,6 +35,19 @@ const challengeSchema = new mongoose.Schema({
   solvedBy: [{
     type: String
   }],
+  visible: {
+    type: Boolean,
+    default: true
+  },
+  disabled: {
+    type: Boolean,
+    default: false
+  },
+  firstBlood: {
+    teamCode: { type: String },
+    teamName: { type: String },
+    solvedAt: { type: Date }
+  },
   createdAt: {
     type: Date,
     default: Date.now

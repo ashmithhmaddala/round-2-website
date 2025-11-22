@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { API_URL } from '../utils/api';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -18,11 +20,16 @@ const ResetPassword = () => {
     }
     setLoading(true);
     try {
-      const endpoint = isAdmin ? '/api/auth/reset-admin-password' : '/api/auth/reset-password';
+      const endpoint = isAdmin
+        ? `${API_URL}/auth/reset-admin-password`
+        : `${API_URL}/auth/reset-password`;
+      const body = isAdmin
+        ? { token, password }
+        : { token, newPassword: password };
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
       setMessage(data.message);

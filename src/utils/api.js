@@ -1,13 +1,14 @@
-// API Base URL - change this when deploying
-const API_URL = 'https://api.nhceosintcrypto.online/api';
+
+// API Base URL - uses environment variable for flexibility
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ==================== AUTH ====================
 
-export const signup = async (username, password) => {
+export const signup = async (username, email, password) => {
   const response = await fetch(`${API_URL}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, email, password })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -204,6 +205,112 @@ export const resetPassword = async (targetUsername, newPassword, requestingUsern
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ targetUsername, newPassword, requestingUsername })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+// ==================== ANALYTICS ====================
+
+export const getRealtimeAnalytics = async () => {
+  const response = await fetch(`${API_URL}/admin/analytics/realtime`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const getChallengeStatistics = async () => {
+  const response = await fetch(`${API_URL}/admin/analytics/challenges`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const getSolveTimeline = async () => {
+  const response = await fetch(`${API_URL}/admin/analytics/timeline`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const toggleChallengeVisibility = async (challengeId) => {
+  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-visibility`, {
+    method: 'PATCH'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const toggleChallengeDisabled = async (challengeId) => {
+  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-disabled`, {
+    method: 'PATCH'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+// ==================== ANNOUNCEMENTS ====================
+
+export const getAnnouncements = async () => {
+  const response = await fetch(`${API_URL}/announcements`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const getAllAnnouncements = async () => {
+  const response = await fetch(`${API_URL}/admin/announcements`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const createAnnouncement = async (announcement) => {
+  const response = await fetch(`${API_URL}/admin/announcements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(announcement)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const updateAnnouncement = async (id, announcement) => {
+  const response = await fetch(`${API_URL}/admin/announcements/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(announcement)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const deleteAnnouncement = async (id) => {
+  const response = await fetch(`${API_URL}/admin/announcements/${id}`, {
+    method: 'DELETE'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const toggleAnnouncementStatus = async (id) => {
+  const response = await fetch(`${API_URL}/admin/announcements/${id}/toggle`, {
+    method: 'PATCH'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const toggleAnnouncementPin = async (id) => {
+  const response = await fetch(`${API_URL}/admin/announcements/${id}/pin`, {
+    method: 'PATCH'
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);

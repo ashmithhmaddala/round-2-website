@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay, FaBell, FaTimes, FaExclamationCircle, FaInfoCircle, FaHome } from 'react-icons/fa'
+import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay } from 'react-icons/fa'
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
-import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled, getAnnouncements } from '../utils/api'
+import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled } from '../utils/api'
 import RealTimeMonitoring from './RealTimeMonitoring'
 import AnnouncementsManager from './AnnouncementsManager'
 import CompetitionManager from './CompetitionManager'
@@ -47,8 +47,6 @@ function Admin() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [announcements, setAnnouncements] = useState([])
-  const [showNotificationPanel, setShowNotificationPanel] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -74,16 +72,14 @@ function Admin() {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true)
-      const [teamsData, challengesData, adminsData, announcementsData] = await Promise.all([
+      const [teamsData, challengesData, adminsData] = await Promise.all([
         getAllTeams(),
         getChallenges(),
-        getAllAdmins(),
-        getAnnouncements()
+        getAllAdmins()
       ])
       setTeams(teamsData)
       setChallenges(challengesData)
       setAdmins(adminsData)
-      setAnnouncements(announcementsData)
       setLastUpdated(new Date())
     } catch (error) {
       if (!silent) showMessage('Failed to load data: ' + error.message, 'error')
@@ -95,18 +91,6 @@ function Admin() {
   const handleLogout = () => {
     setAdminAuth(false)
     navigate('/')
-  }
-
-  const markAllAsRead = () => {
-    const timestamp = Date.now()
-    localStorage.setItem('lastReadTimestamp', timestamp.toString())
-    setShowNotificationPanel(false)
-  }
-
-  const getUnreadCount = () => {
-    const lastRead = localStorage.getItem('lastReadTimestamp')
-    if (!lastRead) return announcements.length
-    return announcements.filter(ann => new Date(ann.createdAt).getTime() > parseInt(lastRead)).length
   }
 
   const showMessage = (text, type) => {
@@ -377,74 +361,12 @@ function Admin() {
                 <span className="status-text">{lastUpdated.toLocaleTimeString()}</span>
               </div>
             )}
-            <button 
-              onClick={() => navigate('/dashboard')} 
-              className="btn-dashboard"
-              title="Go to Team Dashboard"
-            >
-              <FaHome />
-            </button>
-            <button 
-              onClick={() => setShowNotificationPanel(!showNotificationPanel)} 
-              className="btn-notifications"
-            >
-              <FaBell />
-              {getUnreadCount() > 0 && <span className="bell-badge">{getUnreadCount()}</span>}
-            </button>
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>
           </div>
         </div>
       </nav>
-
-      {showNotificationPanel && (
-        <>
-          <div className="notification-overlay" onClick={() => setShowNotificationPanel(false)}></div>
-          <div className="notification-panel">
-            <div className="panel-header">
-              <h3><FaBell /> Announcements</h3>
-              <button onClick={markAllAsRead} className="btn-mark-read">Mark all read</button>
-              <button onClick={() => setShowNotificationPanel(false)} className="panel-close">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="panel-content">
-              {announcements.length === 0 ? (
-                <div className="no-notifications">
-                  <FaBell />
-                  <p>No announcements yet</p>
-                </div>
-              ) : (
-                announcements.map(announcement => (
-                  <div key={announcement._id} className={`notification-item ${announcement.type}`}>
-                    <div className="notification-icon">
-                      {announcement.type === 'info' && <FaInfoCircle />}
-                      {announcement.type === 'warning' && <FaExclamationCircle />}
-                      {announcement.type === 'success' && <FaCheckCircle />}
-                      {announcement.type === 'error' && <FaExclamationCircle />}
-                    </div>
-                    <div className="notification-content">
-                      <div className="notification-header">
-                        <span className="notification-type-badge">{announcement.type}</span>
-                        <h4>{announcement.title}</h4>
-                        {announcement.priority === 'high' && (
-                          <span className="notification-priority">High Priority</span>
-                        )}
-                      </div>
-                      <p>{announcement.message}</p>
-                      <div className="notification-time">
-                        <FaClock />
-                        <span>{new Date(announcement.createdAt).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
       <div className="admin-main">
         <div className="admin-sidebar">

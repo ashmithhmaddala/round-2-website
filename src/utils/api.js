@@ -419,4 +419,16 @@ if (typeof window !== 'undefined') {
       updateLastActivity();
     }, { passive: true });
   });
+
+  // Update activity when user returns to the tab
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      updateLastActivity();
+    }
+  });
+
+  // Update activity on page focus
+  window.addEventListener('focus', () => {
+    updateLastActivity();
+  });
 }

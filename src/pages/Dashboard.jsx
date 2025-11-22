@@ -22,6 +22,16 @@ function Dashboard() {
     }
     setCurrentUser(username)
     checkTeamStatus(username)
+
+    // Periodically check if session is still valid (every 60 seconds)
+    const sessionCheckInterval = setInterval(() => {
+      const stillValid = getCurrentUser()
+      if (!stillValid) {
+        navigate('/')
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(sessionCheckInterval)
   }, [navigate])
 
   const checkTeamStatus = async (username) => {

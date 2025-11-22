@@ -28,7 +28,7 @@ const challengeSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  flag: {
+  flagHash: {
     type: String,
     required: true
   },

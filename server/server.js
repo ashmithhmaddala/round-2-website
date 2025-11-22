@@ -1,13 +1,16 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 
 import User from './models/User.js';
 import Team from './models/Team.js';
 import Challenge from './models/Challenge.js';
 import Admin from './models/Admin.js';
+import Solve from './models/Solve.js';
 
 dotenv.config();
 
@@ -15,8 +18,42 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  'https://round-2-website-bqpdjjm7d-ashmithhmaddalas-projects.vercel.app',
+  'https://nhceosintcrypto.online',
+  'http://localhost:5173'
+];
+app.use(helmet({
+  crossOriginResourcePolicy: false // allow CORS with helmet
+}));
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json());
+
+// Rate limiting
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: { error: 'Too many login attempts, please try again later.' }
+});
+const flagLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 flag submissions per windowMs
+  message: { error: 'Too many flag submissions, please try again later.' }
+});
+
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/challenges/submit', flagLimiter);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -47,6 +84,7 @@ async function initializeSuperAdmin() {
 async function initializeDefaultChallenges() {
   const count = await Challenge.countDocuments();
   if (count === 0) {
+    const bcrypt = require('bcrypt');
     const defaultChallenges = [
       // OSINT Challenges
       {
@@ -56,7 +94,7 @@ async function initializeDefaultChallenges() {
         category: 'osint',
         difficulty: 'easy',
         points: 100,
-        flag: 'CTF{social_media_master}'
+        flagPlain: 'CTF{social_media_master}'
       },
       {
         id: 'osint-2',
@@ -65,7 +103,7 @@ async function initializeDefaultChallenges() {
         category: 'osint',
         difficulty: 'medium',
         points: 200,
-        flag: 'CTF{new_delhi_india}'
+        flagPlain: 'CTF{new_delhi_india}'
       },
       {
         id: 'osint-3',
@@ -74,7 +112,7 @@ async function initializeDefaultChallenges() {
         category: 'osint',
         difficulty: 'medium',
         points: 250,
-        flag: 'CTF{metadata_expert}'
+        flagPlain: 'CTF{metadata_expert}'
       },
       {
         id: 'osint-4',
@@ -83,7 +121,7 @@ async function initializeDefaultChallenges() {
         category: 'osint',
         difficulty: 'hard',
         points: 300,
-        flag: 'CTF{2020-05-15}'
+        flagPlain: 'CTF{2020-05-15}'
       },
       // Cryptography Challenges
       {
@@ -93,7 +131,7 @@ async function initializeDefaultChallenges() {
         category: 'crypto',
         difficulty: 'easy',
         points: 100,
-        flag: 'CTF{caesar_cipher}'
+        flagPlain: 'CTF{caesar_cipher}'
       },
       {
         id: 'crypto-2',
@@ -102,7 +140,7 @@ async function initializeDefaultChallenges() {
         category: 'crypto',
         difficulty: 'easy',
         points: 150,
-        flag: 'CTF{base64_is_easy}'
+        flagPlain: 'CTF{base64_is_easy}'
       },
       {
         id: 'crypto-3',
@@ -111,7 +149,7 @@ async function initializeDefaultChallenges() {
         category: 'crypto',
         difficulty: 'medium',
         points: 200,
-        flag: 'CTF{xor}'
+        flagPlain: 'CTF{xor}'
       },
       {
         id: 'crypto-4',
@@ -120,7 +158,7 @@ async function initializeDefaultChallenges() {
         category: 'crypto',
         difficulty: 'hard',
         points: 300,
-        flag: 'CTF{rsa_cracked}'
+        flagPlain: 'CTF{rsa_cracked}'
       },
       {
         id: 'crypto-5',
@@ -129,11 +167,18 @@ async function initializeDefaultChallenges() {
         category: 'crypto',
         difficulty: 'hard',
         points: 400,
-        flag: 'CTF{collision_found}'
+        flagPlain: 'CTF{collision_found}'
       }
     ];
 
-    await Challenge.insertMany(defaultChallenges);
+    // Hash flags before inserting
+    const challengesWithHash = await Promise.all(defaultChallenges.map(async (ch) => {
+      const flagHash = await bcrypt.hash(ch.flagPlain, 12);
+      const { flagPlain, ...rest } = ch;
+      return { ...rest, flagHash };
+    }));
+
+    await Challenge.insertMany(challengesWithHash);
     console.log('✅ Default challenges initialized');
   }
 }
@@ -364,10 +409,22 @@ app.post('/api/teams/leave', async (req, res) => {
 });
 
 
-// Get all teams (admin)
+// In-memory cache for leaderboard
+let leaderboardCache = {
+  data: null,
+  ts: 0
+};
+const LEADERBOARD_CACHE_TTL = 10000; // 10 seconds
+
+// Get all teams (admin/leaderboard)
 app.get('/api/teams', async (req, res) => {
   try {
+    const now = Date.now();
+    if (leaderboardCache.data && (now - leaderboardCache.ts < LEADERBOARD_CACHE_TTL)) {
+      return res.json(leaderboardCache.data);
+    }
     const teams = await Team.find().sort({ score: -1 });
+    leaderboardCache = { data: teams, ts: now };
     res.json(teams);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -416,42 +473,45 @@ app.post('/api/challenges/submit', async (req, res) => {
       return res.status(404).json({ error: 'Challenge not found' });
     }
 
-    // Check flag
-    if (challenge.flag !== flag) {
+    // Check flag using bcrypt
+    const bcrypt = require('bcrypt');
+    const isFlagValid = await bcrypt.compare(flag, challenge.flagHash);
+    if (!isFlagValid) {
       return res.json({ success: false, message: 'Incorrect flag' });
     }
 
     // Check if already solved
     const user = await User.findOne({ username });
-    if (user.solvedChallenges.includes(challengeId)) {
+    const team = teamCode ? await Team.findOne({ code: teamCode }) : null;
+
+    const existingSolve = await Solve.findOne({
+      team: team?._id || null,
+      challenge: challenge._id
+    });
+
+    if (existingSolve) {
       return res.json({ success: false, message: 'Challenge already solved' });
     }
+
+    // Record solve
+    const solve = new Solve({
+      team: team?._id || null,
+      challenge: challenge._id
+    });
+    await solve.save();
 
     // Update user
     user.solvedChallenges.push(challengeId);
     await user.save();
 
     // Update team
-    if (teamCode) {
-      const team = await Team.findOne({ code: teamCode });
-      if (team && !team.solvedChallenges.includes(challengeId)) {
-        team.solvedChallenges.push(challengeId);
-        team.score += challenge.points;
-        await team.save();
-      }
+    if (team) {
+      team.solvedChallenges.push(challengeId);
+      team.score += challenge.points;
+      await team.save();
     }
 
-    // Update challenge
-    if (!challenge.solvedBy.includes(username)) {
-      challenge.solvedBy.push(username);
-      await challenge.save();
-    }
-
-    res.json({
-      success: true,
-      message: 'Correct flag!',
-      points: challenge.points
-    });
+    res.json({ success: true, message: 'Challenge solved successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -460,7 +520,10 @@ app.post('/api/challenges/submit', async (req, res) => {
 // Create challenge (admin)
 app.post('/api/challenges', async (req, res) => {
   try {
-    const challenge = new Challenge(req.body);
+    const bcrypt = require('bcrypt');
+    const { flag, ...rest } = req.body;
+    const flagHash = await bcrypt.hash(flag, 12);
+    const challenge = new Challenge({ ...rest, flagHash });
     await challenge.save();
     res.json({ success: true, challenge });
   } catch (error) {
@@ -471,9 +534,15 @@ app.post('/api/challenges', async (req, res) => {
 // Update challenge (admin)
 app.put('/api/challenges/:id', async (req, res) => {
   try {
+    const bcrypt = require('bcrypt');
+    const updateData = { ...req.body };
+    if (updateData.flag) {
+      updateData.flagHash = await bcrypt.hash(updateData.flag, 12);
+      delete updateData.flag;
+    }
     const challenge = await Challenge.findOneAndUpdate(
       { id: req.params.id },
-      req.body,
+      updateData,
       { new: true }
     );
     res.json({ success: true, challenge });
@@ -705,6 +774,37 @@ app.get('/api/admin/analytics', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Temporary in-memory log storage for demonstration
+const logs = [];
+
+// Middleware to log requests
+app.use((req, res, next) => {
+  const logEntry = {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString(),
+  };
+  logs.push(logEntry);
+  console.log(logEntry);
+  next();
+});
+
+// Initialize sample logs during server startup
+logs.push(
+  { method: 'GET', url: '/api/teams', timestamp: new Date().toISOString() },
+  { method: 'POST', url: '/api/challenges/submit', timestamp: new Date().toISOString() },
+  { method: 'GET', url: '/api/logs', timestamp: new Date().toISOString() }
+);
+
+// Add a test log entry
+logs.push({ method: 'TEST', url: '/api/test', timestamp: new Date().toISOString() });
+
+// Debugging logs for `/api/logs` endpoint
+app.get('/api/logs', (req, res) => {
+  console.log('Logs requested:', logs);
+  res.json(logs);
 });
 
 // Health check

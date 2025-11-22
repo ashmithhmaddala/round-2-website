@@ -68,18 +68,23 @@ function Challenges() {
 
     try {
       const result = await submitFlag(currentChallenge.id, flagInput, currentUser, teamData.code)
-      
       if (result.success) {
         const updatedTeam = await getTeam(teamData.code)
         setTeamData(updatedTeam)
         showMessage(`Correct! +${result.points} points`, 'success')
         setModalOpen(false)
         setCurrentChallenge(null)
+      } else if (result.error && result.error.toLowerCase().includes('too many')) {
+        showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
       } else {
         showMessage(result.message || 'Incorrect flag. Try again!', 'error')
       }
     } catch (error) {
-      showMessage('Error submitting flag: ' + error.message, 'error')
+      if (error.message && error.message.toLowerCase().includes('too many')) {
+        showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
+      } else {
+        showMessage('Error submitting flag: ' + error.message, 'error')
+      }
     }
   }
 
@@ -225,7 +230,7 @@ function Challenges() {
         </div>
 
         {message.text && (
-          <div className={`message ${message.type}`} style={{ display: 'block' }}>
+          <div className={`message ${message.type}`} style={{ display: 'block', background: message.type === 'warning' ? 'rgba(245, 158, 11, 0.15)' : undefined, color: message.type === 'warning' ? '#f59e0b' : undefined, border: message.type === 'warning' ? '1px solid rgba(245, 158, 11, 0.3)' : undefined }}>
             {message.text}
           </div>
         )}

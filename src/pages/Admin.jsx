@@ -307,6 +307,15 @@ function Admin() {
     }]
   }
 
+  const navigationItems = [
+    { name: 'Overview', path: '/admin' },
+    { name: 'Teams', path: '/admin/teams' },
+    { name: 'Challenges', path: '/admin/challenges' },
+    { name: 'Analytics', path: '/admin/analytics' },
+    { name: 'Admins', path: '/admin/admins' },
+    { name: 'Logging & Monitoring', path: '/admin/logging' },
+  ];
+
   return (
     <>
       <nav className="admin-navbar">
@@ -334,41 +343,16 @@ function Admin() {
 
       <div className="admin-main">
         <div className="admin-sidebar">
-          <button 
-            className={`sidebar-tab ${activeTab === 'overview' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('overview')}
-          >
-            <FaChartLine />
-            <span>Overview</span>
-          </button>
-          <button 
-            className={`sidebar-tab ${activeTab === 'teams' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('teams')}
-          >
-            <FaUsers />
-            <span>Teams</span>
-          </button>
-          <button 
-            className={`sidebar-tab ${activeTab === 'challenges' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('challenges')}
-          >
-            <FaPuzzlePiece />
-            <span>Challenges</span>
-          </button>
-          <button 
-            className={`sidebar-tab ${activeTab === 'analytics' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('analytics')}
-          >
-            <FaChartLine />
-            <span>Analytics</span>
-          </button>
-          <button 
-            className={`sidebar-tab ${activeTab === 'admins' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('admins')}
-          >
-            <FaShieldAlt />
-            <span>Admins</span>
-          </button>
+          {navigationItems.map((item) => (
+            <button 
+              key={item.name}
+              className={`sidebar-tab ${activeTab === item.name.toLowerCase() ? 'active' : ''}`} 
+              onClick={() => setActiveTab(item.name.toLowerCase())}
+            >
+              {item.name === 'Logging & Monitoring' ? <FaChartLine /> : item.name === 'Teams' ? <FaUsers /> : item.name === 'Challenges' ? <FaPuzzlePiece /> : item.name === 'Analytics' ? <FaChartLine /> : item.name === 'Admins' ? <FaShieldAlt /> : null}
+              <span>{item.name}</span>
+            </button>
+          ))}
           
           <div className="sidebar-footer">
             <button 

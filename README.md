@@ -2,7 +2,7 @@
 
 A professional Capture The Flag (CTF) platform built with React, Express.js, and MongoDB Atlas. Features team management, real-time scoring, admin dashboard with analytics, and modern UI design.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ installed
@@ -24,7 +24,7 @@ npm run build
 npm run preview
 ```
 
-## 📦 Tech Stack
+## Tech Stack
 
 - **Frontend**: React 18 + Vite
 - **Routing**: React Router DOM
@@ -33,7 +33,7 @@ npm run preview
 - **Storage**: LocalStorage (client-side)
 - **Styling**: CSS3 with CSS Variables
 
-## 🌐 Deployment Options
+## Deployment Options
 
 ### Option 1: Vercel (Recommended - Easiest)
 
@@ -43,7 +43,7 @@ npm run preview
 4. Import your GitHub repository
 5. Vercel auto-detects Vite config
 6. Click "Deploy"
-7. Done! 🎉
+7. Done!
 
 **One-command deploy:**
 ```bash
@@ -80,29 +80,29 @@ npm install --save-dev gh-pages
 npm run deploy
 ```
 
-## 🎮 Features
+## Features
 
 ### User Features
-- ✅ Sign up / Login authentication
-- ✅ Create or join teams with 6-digit codes
-- ✅ Browse OSINT & Cryptography challenges
-- ✅ Submit flags and earn points
-- ✅ Team leaderboard and statistics
-- ✅ Real-time score updates
+- Sign up / Login authentication
+- Create or join teams with 6-digit codes
+- Browse OSINT & Cryptography challenges
+- Submit flags and earn points
+- Team leaderboard and statistics
+- Real-time score updates
 
 ### Admin Features
-- ✅ Admin dashboard (password: `admin123`)
-- ✅ View all teams and players
-- ✅ Create, edit, delete challenges
-- ✅ Analytics with Chart.js visualizations
-- ✅ Team management (delete teams)
+Admin dashboard (set your own secure password)
+- View all teams and players
+- Create, edit, delete challenges
+- Analytics with Chart.js visualizations
+- Team management (delete teams)
 
-## 🔑 Admin Access
+## Admin Access
 
 - **URL**: `/admin`
-- **Password**: `admin123` (change in `src/pages/Admin.jsx`)
+**Password**: (set in backend or via environment variable; never use default passwords)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -119,7 +119,7 @@ src/
 └── admin.css              # Admin-specific styles
 ```
 
-## 🎨 React Icons Used
+## React Icons Used
 
 - `FaShieldAlt` - Logo/Security
 - `FaUsers` - Create Team
@@ -131,7 +131,7 @@ src/
 - `FaChartLine` - Analytics
 - And more...
 
-## 🔧 Configuration
+## Configuration
 
 ### Change Admin Password
 Edit `src/pages/Admin.jsx`:
@@ -142,7 +142,7 @@ const ADMIN_PASSWORD = 'your-secure-password'
 ### Add More Challenges
 Use the Admin Dashboard or edit `src/utils/auth.js` in `getDefaultChallenges()`
 
-## 🚢 Production Deployment Checklist
+## Production Deployment Checklist
 
 - [ ] Change admin password
 - [ ] Test all features
@@ -151,7 +151,7 @@ Use the Admin Dashboard or edit `src/utils/auth.js` in `getDefaultChallenges()`
 - [ ] Test deployed site
 - [ ] Share with users!
 
-## 📊 Browser Storage
+## Browser Storage
 
 Data is stored in `localStorage`:
 - `users` - User accounts
@@ -160,7 +160,7 @@ Data is stored in `localStorage`:
 - `currentUser` - Logged-in user
 - `adminAuth` - Admin session (sessionStorage)
 
-## 🔄 Migrating to Backend (Future)
+## Migrating to Backend (Future)
 
 To use MongoDB Atlas:
 1. Create backend API (Express.js)
@@ -168,14 +168,14 @@ To use MongoDB Atlas:
 3. Deploy backend to Vercel/Render
 4. Update frontend to use API endpoints
 
-## 📝 License
+## License
 
 MIT - Free to use for educational purposes
 
-## 🤝 Contributing
+## Contributing
 
 Pull requests welcome! Please test before submitting.
 
 ---
 
-**Built with ⚡ Vite + ⚛️ React**
+**Built with Vite + React**

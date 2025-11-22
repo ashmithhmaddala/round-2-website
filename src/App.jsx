@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Challenges from './pages/Challenges'
 import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
+import LoggingAndMonitoring from './pages/LoggingAndMonitoring';
 import './App.css'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/logging" element={<LoggingAndMonitoring />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

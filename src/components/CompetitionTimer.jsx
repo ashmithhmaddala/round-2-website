@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../utils/api';
 import '../admin.css';
 
 const CompetitionTimer = () => {
@@ -52,7 +53,7 @@ const CompetitionTimer = () => {
 
   const fetchCompetition = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/competition');
+      const response = await fetch(`${API_URL}/competition`);
       if (!response.ok) {
         throw new Error('Failed to fetch competition data');
       }

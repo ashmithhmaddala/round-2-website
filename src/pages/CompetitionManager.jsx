@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../utils/api';
 import '../admin.css';
 
 const CompetitionManager = () => {
@@ -22,7 +23,7 @@ const CompetitionManager = () => {
 
   const fetchCompetition = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/competition');
+      const response = await fetch(`${API_URL}/admin/competition`);
       if (!response.ok) {
         throw new Error('Failed to fetch competition');
       }
@@ -68,7 +69,7 @@ const CompetitionManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/admin/competition', {
+      const response = await fetch(`${API_URL}/admin/competition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +97,7 @@ const CompetitionManager = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/competition/status', {
+      const response = await fetch(`${API_URL}/admin/competition/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

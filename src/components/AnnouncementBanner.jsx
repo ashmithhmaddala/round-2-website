@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../utils/api';
 
 const AnnouncementBanner = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -12,7 +13,7 @@ const AnnouncementBanner = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/announcements');
+      const response = await fetch(`${API_URL}/announcements`);
       if (!response.ok) throw new Error('Failed to fetch announcements');
       const data = await response.json();
       setAnnouncements(data.announcements);

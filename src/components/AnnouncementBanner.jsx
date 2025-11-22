@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell, FaClock } from 'react-icons/fa';
 import { API_URL } from '../utils/api';
 
 const AnnouncementBanner = () => {
@@ -28,55 +29,71 @@ const AnnouncementBanner = () => {
     switch (type) {
       case 'info':
         return {
-          icon: 'ℹ️',
+          icon: FaInfoCircle,
           gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          background: 'rgba(59, 130, 246, 0.05)'
+          borderColor: 'rgba(59, 130, 246, 0.4)',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          iconColor: '#3b82f6',
+          label: 'Information'
         };
       case 'warning':
         return {
-          icon: '⚠️',
+          icon: FaExclamationTriangle,
           gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          background: 'rgba(245, 158, 11, 0.05)'
+          borderColor: 'rgba(245, 158, 11, 0.4)',
+          backgroundColor: 'rgba(245, 158, 11, 0.08)',
+          iconColor: '#f59e0b',
+          label: 'Warning'
         };
       case 'success':
         return {
-          icon: '✅',
+          icon: FaCheckCircle,
           gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          background: 'rgba(16, 185, 129, 0.05)'
+          borderColor: 'rgba(16, 185, 129, 0.4)',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          iconColor: '#10b981',
+          label: 'Success'
         };
       case 'error':
         return {
-          icon: '❌',
+          icon: FaTimesCircle,
           gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          background: 'rgba(239, 68, 68, 0.05)'
+          borderColor: 'rgba(239, 68, 68, 0.4)',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          iconColor: '#ef4444',
+          label: 'Error'
         };
       case 'urgent':
         return {
-          icon: '🚨',
+          icon: FaBell,
           gradient: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-          border: '1px solid rgba(220, 38, 38, 0.4)',
-          background: 'rgba(220, 38, 38, 0.08)'
+          borderColor: 'rgba(220, 38, 38, 0.5)',
+          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+          iconColor: '#dc2626',
+          label: 'Urgent'
         };
       default:
         return {
-          icon: 'ℹ️',
+          icon: FaInfoCircle,
           gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-          border: '1px solid rgba(107, 114, 128, 0.3)',
-          background: 'rgba(107, 114, 128, 0.05)'
+          borderColor: 'rgba(107, 114, 128, 0.4)',
+          backgroundColor: 'rgba(107, 114, 128, 0.08)',
+          iconColor: '#6b7280',
+          label: 'Notice'
         };
     }
   };
 
-  const getPriorityLabel = (priority) => {
+  const getPriorityConfig = (priority) => {
     switch (priority) {
-      case 'high': return '🔴 High Priority';
-      case 'medium': return '🟡 Medium';
-      case 'low': return '🟢 Low';
-      default: return '';
+      case 'high': 
+        return { label: 'High Priority', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
+      case 'medium': 
+        return { label: 'Medium Priority', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
+      case 'low': 
+        return { label: 'Low Priority', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)' };
+      default: 
+        return null;
     }
   };
 
@@ -99,18 +116,22 @@ const AnnouncementBanner = () => {
         <div style={{ marginBottom: '12px' }}>
           {pinnedAnnouncements.map((announcement) => {
             const config = getTypeConfig(announcement.type);
+            const Icon = config.icon;
+            const priorityConfig = getPriorityConfig(announcement.priority);
+            
             return (
               <div
                 key={announcement._id}
                 style={{
-                  background: config.background,
-                  border: config.border,
+                  background: config.backgroundColor,
+                  border: `1px solid ${config.borderColor}`,
                   borderRadius: '12px',
-                  padding: '16px 20px',
+                  padding: '18px 20px',
                   marginBottom: '12px',
                   position: 'relative',
                   overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 {/* Gradient bar on left */}
@@ -126,15 +147,22 @@ const AnnouncementBanner = () => {
                 <div style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  gap: '12px',
+                  gap: '16px',
                   paddingLeft: '8px'
                 }}>
+                  {/* Icon */}
                   <div style={{
-                    fontSize: '24px',
-                    lineHeight: '1',
-                    marginTop: '2px'
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    background: config.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: `0 4px 12px ${config.borderColor}`
                   }}>
-                    {config.icon}
+                    <Icon style={{ color: 'white', fontSize: '20px' }} />
                   </div>
 
                   <div style={{ flex: 1 }}>
@@ -142,37 +170,53 @@ const AnnouncementBanner = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
-                      marginBottom: '4px',
+                      marginBottom: '8px',
                       flexWrap: 'wrap'
                     }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: config.gradient,
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        color: 'white',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        PINNED
+                      </div>
+                      
                       <h3 style={{
                         margin: 0,
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: '#ecf0f1'
+                        fontSize: '17px',
+                        fontWeight: '700',
+                        color: '#f1f5f9'
                       }}>
-                        📌 {announcement.title}
+                        {announcement.title}
                       </h3>
                       
-                      {announcement.priority !== 'low' && (
+                      {priorityConfig && announcement.priority !== 'low' && (
                         <span style={{
-                          fontSize: '12px',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: announcement.priority === 'high' 
-                            ? 'rgba(239, 68, 68, 0.2)' 
-                            : 'rgba(245, 158, 11, 0.2)',
-                          color: announcement.priority === 'high' ? '#ef4444' : '#f59e0b',
-                          fontWeight: '600'
+                          fontSize: '11px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: priorityConfig.bgColor,
+                          color: priorityConfig.color,
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
                         }}>
-                          {getPriorityLabel(announcement.priority)}
+                          {priorityConfig.label}
                         </span>
                       )}
                     </div>
 
                     <p style={{
                       margin: 0,
-                      fontSize: '14px',
+                      fontSize: '14.5px',
                       color: '#cbd5e1',
                       lineHeight: '1.6'
                     }}>
@@ -181,11 +225,15 @@ const AnnouncementBanner = () => {
 
                     {announcement.expiresAt && (
                       <div style={{
-                        marginTop: '8px',
+                        marginTop: '10px',
                         fontSize: '12px',
-                        color: '#94a3b8'
+                        color: '#94a3b8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
                       }}>
-                        ⏰ Expires: {new Date(announcement.expiresAt).toLocaleString()}
+                        <FaClock style={{ fontSize: '11px' }} />
+                        <span>Expires: {new Date(announcement.expiresAt).toLocaleString()}</span>
                       </div>
                     )}
                   </div>
@@ -201,17 +249,21 @@ const AnnouncementBanner = () => {
         <div>
           {regularAnnouncements.map((announcement) => {
             const config = getTypeConfig(announcement.type);
+            const Icon = config.icon;
+            const priorityConfig = getPriorityConfig(announcement.priority);
+            
             return (
               <div
                 key={announcement._id}
                 style={{
-                  background: config.background,
-                  border: config.border,
-                  borderRadius: '8px',
-                  padding: '12px 16px',
-                  marginBottom: '8px',
+                  background: config.backgroundColor,
+                  border: `1px solid ${config.borderColor}`,
+                  borderRadius: '10px',
+                  padding: '14px 18px',
+                  marginBottom: '10px',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 {/* Gradient bar on left */}
@@ -227,15 +279,21 @@ const AnnouncementBanner = () => {
                 <div style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  gap: '10px',
+                  gap: '12px',
                   paddingLeft: '6px'
                 }}>
+                  {/* Icon */}
                   <div style={{
-                    fontSize: '18px',
-                    lineHeight: '1',
-                    marginTop: '2px'
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: config.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
                   }}>
-                    {config.icon}
+                    <Icon style={{ color: 'white', fontSize: '16px' }} />
                   </div>
 
                   <div style={{ flex: 1 }}>
@@ -243,35 +301,37 @@ const AnnouncementBanner = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '10px',
-                      marginBottom: '4px',
+                      marginBottom: '6px',
                       flexWrap: 'wrap'
                     }}>
                       <h4 style={{
                         margin: 0,
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        color: '#ecf0f1'
+                        fontSize: '15px',
+                        fontWeight: '700',
+                        color: '#f1f5f9'
                       }}>
                         {announcement.title}
                       </h4>
                       
-                      {announcement.priority === 'high' && (
+                      {priorityConfig && announcement.priority === 'high' && (
                         <span style={{
-                          fontSize: '11px',
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          background: 'rgba(239, 68, 68, 0.2)',
-                          color: '#ef4444',
-                          fontWeight: '600'
+                          fontSize: '10px',
+                          padding: '3px 8px',
+                          borderRadius: '5px',
+                          background: priorityConfig.bgColor,
+                          color: priorityConfig.color,
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
                         }}>
-                          {getPriorityLabel(announcement.priority)}
+                          {priorityConfig.label}
                         </span>
                       )}
                     </div>
 
                     <p style={{
                       margin: 0,
-                      fontSize: '13px',
+                      fontSize: '13.5px',
                       color: '#cbd5e1',
                       lineHeight: '1.5'
                     }}>

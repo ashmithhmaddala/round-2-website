@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaSearch, FaLock } from 'react-icons/fa'
-import { getCurrentUser, logout, getUser, getTeam, getChallenges, submitFlag } from '../utils/api'
+import { FaShieldAlt, FaSearch, FaLock, FaUsers, FaBell, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSignOutAlt, FaHome } from 'react-icons/fa'
+import { getCurrentUser, logout, getUser, getTeam, getChallenges, submitFlag, API_URL } from '../utils/api'
+import '../pages/Dashboard.css'
+import './Challenges.css'
 
 function Challenges() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -12,6 +14,13 @@ function Challenges() {
   const [currentChallenge, setCurrentChallenge] = useState(null)
   const [flagInput, setFlagInput] = useState('')
   const [message, setMessage] = useState({ text: '', type: '' })
+  const [competition, setCompetition] = useState(null)
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [announcements, setAnnouncements] = useState([])
+  const [shownAnnouncements, setShownAnnouncements] = useState(new Set())
+  const [visiblePopups, setVisiblePopups] = useState([])
+  const [showNotificationPanel, setShowNotificationPanel] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -54,6 +63,137 @@ function Challenges() {
 
     return () => clearInterval(sessionCheckInterval)
   }, [navigate])
+
+  // Fetch competition data
+  useEffect(() => {
+    fetchCompetition()
+    const interval = setInterval(fetchCompetition, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Calculate time left
+  useEffect(() => {
+    if (!competition) return
+
+    const calculateTimeLeft = () => {
+      const now = new Date()
+      let targetTime
+
+      if (competition.status === 'upcoming') {
+        targetTime = new Date(competition.startTime)
+      } else if (competition.status === 'live' || competition.status === 'frozen') {
+        targetTime = new Date(competition.endTime)
+      } else {
+        return null
+      }
+
+      const difference = targetTime - now
+      if (difference <= 0) return null
+
+      const hours = Math.floor((difference / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((difference / 1000 / 60) % 60)
+      const seconds = Math.floor((difference / 1000) % 60)
+
+      return { hours, minutes, seconds }
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft())
+    }, 1000)
+
+    setTimeLeft(calculateTimeLeft())
+    return () => clearInterval(timer)
+  }, [competition])
+
+  // Fetch announcements
+  useEffect(() => {
+    fetchAnnouncements()
+    const interval = setInterval(fetchAnnouncements, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchCompetition = async () => {
+    try {
+      const response = await fetch(`${API_URL}/competition`)
+      if (response.ok) {
+        const data = await response.json()
+        setCompetition(data)
+      }
+    } catch (err) {
+      console.error('Error fetching competition:', err)
+    }
+  }
+
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await fetch(`${API_URL}/announcements`)
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Get last read timestamp from localStorage
+        const lastReadTime = localStorage.getItem('lastReadTime') || '0'
+        const lastReadTimestamp = parseInt(lastReadTime)
+        
+        // On first load, mark all existing announcements as already shown
+        if (shownAnnouncements.size === 0 && data.announcements.length > 0) {
+          const existingIds = new Set(data.announcements.map(a => a._id))
+          setShownAnnouncements(existingIds)
+          
+          // Count only announcements created after last read time
+          const unreadAnnouncements = data.announcements.filter(
+            a => new Date(a.createdAt).getTime() > lastReadTimestamp
+          )
+          setUnreadCount(unreadAnnouncements.length)
+        } else {
+          // Show only NEW announcements as pop-ups
+          const newAnnouncements = data.announcements.filter(
+            announcement => !shownAnnouncements.has(announcement._id)
+          )
+          
+          if (newAnnouncements.length > 0) {
+            newAnnouncements.forEach(announcement => {
+              setShownAnnouncements(prev => new Set([...prev, announcement._id]))
+              setVisiblePopups(prev => [...prev, announcement._id])
+              
+              // Auto-dismiss after 30 seconds
+              setTimeout(() => {
+                dismissPopup(announcement._id)
+              }, 30000)
+            })
+            
+            setUnreadCount(prev => prev + newAnnouncements.length)
+          }
+        }
+        
+        setAnnouncements(data.announcements)
+      }
+    } catch (err) {
+      console.error('Error fetching announcements:', err)
+    }
+  }
+
+  const dismissPopup = (id) => {
+    setVisiblePopups(prev => prev.filter(popupId => popupId !== id))
+  }
+
+  const toggleNotificationPanel = () => {
+    setShowNotificationPanel(!showNotificationPanel)
+  }
+
+  const markAllAsRead = () => {
+    setUnreadCount(0)
+    // Save current timestamp to localStorage
+    localStorage.setItem('lastReadTime', Date.now().toString())
+  }
+
+  const getAnnouncementIcon = (type) => {
+    switch (type) {
+      case 'info': return <FaInfoCircle />
+      case 'warning': return <FaExclamationTriangle />
+      case 'success': return <FaCheckCircle />
+      default: return <FaBell />
+    }
+  }
 
   const showMessage = (text, type) => {
     setMessage({ text, type })
@@ -104,66 +244,119 @@ function Challenges() {
 
   return (
     <>
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="logo-small">
-            <FaShieldAlt /> OSINT & Crypto CTF
+      <nav className="dashboard-nav">
+        <div className="nav-content">
+          <div className="nav-brand">
+            <div className="brand-icon">
+              <FaShieldAlt />
+            </div>
+            <div className="brand-text">
+              <h1>Cache Me If You Can</h1>
+              <p>NHCE Cybersecurity CTF</p>
+            </div>
           </div>
-          <div className="nav-links">
-            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }} className="nav-link">
-              Team Dashboard
-            </a>
-            <span>Team: {teamData?.name}</span>
-            <button onClick={() => { logout(); navigate('/'); }} className="btn btn-secondary">
-              Logout
+          <div className="nav-center">
+            {competition && timeLeft && (competition.status === 'live' || competition.status === 'upcoming' || competition.status === 'frozen') && (
+              <div className="nav-timer">
+                <FaClock className="timer-icon" />
+                <div className="timer-display">
+                  <span className="timer-unit">{String(timeLeft.hours).padStart(2, '0')}</span>
+                  <span className="timer-separator">:</span>
+                  <span className="timer-unit">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                  <span className="timer-separator">:</span>
+                  <span className="timer-unit">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                </div>
+                <span className="timer-label">{competition.status === 'upcoming' ? 'Starts in' : 'Ends in'}</span>
+              </div>
+            )}
+          </div>
+          <div className="nav-actions">
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="btn-dashboard"
+              title="Go to Team Dashboard"
+            >
+              <FaHome />
+            </button>
+            <button 
+              onClick={toggleNotificationPanel}
+              className="btn-notifications"
+              aria-label="View notifications"
+            >
+              <FaBell />
+              {unreadCount > 0 && (
+                <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            <div className="user-info">
+              <span className="user-label">Logged in as</span>
+              <span className="user-name">{currentUser}</span>
+            </div>
+            <button onClick={() => { logout(); navigate('/'); }} className="btn-logout">
+              <FaSignOutAlt />
+              <span>Logout</span>
             </button>
           </div>
         </div>
       </nav>
 
-      <div className="container">
-        <div className="challenges-header">
-          <div>
-            <h1>Challenge Arena</h1>
-            <p className="challenges-subtitle">Test your skills and solve challenges to earn points for your team</p>
-          </div>
-          <div className="score-display">
-            <div className="score-label">Team Score</div>
-            <strong>{teamData?.score || 0}</strong>
-            <div className="score-unit">points</div>
-          </div>
-        </div>
-
-        <div className="category-tabs">
-          <button
-            className={`tab-btn ${activeCategory === 'osint' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('osint')}
-          >
-            <FaSearch /> OSINT
-          </button>
-          <button
-            className={`tab-btn ${activeCategory === 'crypto' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('crypto')}
-          >
-            <FaLock /> Cryptography
-          </button>
-        </div>
-
-        <div className={`challenges-container ${activeCategory === 'osint' ? 'active' : ''}`}>
-          <h2>OSINT Challenges</h2>
-          {getChallengesByCategory('osint').length === 0 ? (
-            <div className="empty-challenges">
-              <FaSearch style={{ fontSize: '48px', color: '#4a90e2', marginBottom: '16px' }} />
-              <h3>No OSINT challenges available yet</h3>
-              <p>Check back soon for exciting challenges to test your investigation skills!</p>
+      <main className="challenges-main">
+        <div className="challenges-wrapper">
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            <div className="stat-card">
+              <div className="stat-icon score-icon">
+                <FaShieldAlt />
+              </div>
+              <div className="stat-content">
+                <span className="stat-label">Team Score</span>
+                <span className="stat-value">{teamData?.score || 0}</span>
+              </div>
             </div>
-          ) : (
-          <div className="challenges-grid">
+          </div>
+
+          {/* Category Selection */}
+          <div className="category-selector">
+            <button
+              className={`category-btn ${activeCategory === 'osint' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('osint')}
+            >
+              <div className="category-icon osint">
+                <FaSearch />
+              </div>
+              <span className="category-name">OSINT</span>
+            </button>
+            <button
+              className={`category-btn ${activeCategory === 'crypto' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('crypto')}
+            >
+              <div className="category-icon crypto">
+                <FaLock />
+              </div>
+              <span className="category-name">Cryptography</span>
+            </button>
+          </div>
+
+          {/* OSINT Challenges */}
+          <div className={`challenges-section ${activeCategory === 'osint' ? 'active' : ''}`}>
+            <div className="section-header">
+              <h2>OSINT Challenges</h2>
+              <span className="challenge-count">{getChallengesByCategory('osint').length} {getChallengesByCategory('osint').length === 1 ? 'Challenge' : 'Challenges'}</span>
+            </div>
+            {getChallengesByCategory('osint').length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <FaSearch />
+                </div>
+                <h3>No OSINT challenges available</h3>
+                <p>Check back soon for exciting challenges to test your investigation skills!</p>
+              </div>
+            ) : (
+            <div className="challenges-grid">
             {getChallengesByCategory('osint').map((challenge) => (
               <div
                 key={challenge.id}
                 className={`challenge-card ${teamData?.solvedChallenges.includes(challenge.id) ? 'solved' : ''}`}
-                data-challenge-id={challenge.id}
               >
                 <div className="challenge-header">
                   <h3>{challenge.title}</h3>
@@ -194,21 +387,26 @@ function Challenges() {
           )}
         </div>
 
-        <div className={`challenges-container ${activeCategory === 'crypto' ? 'active' : ''}`}>
-          <h2>Cryptography Challenges</h2>
-          {getChallengesByCategory('crypto').length === 0 ? (
-            <div className="empty-challenges">
-              <FaLock style={{ fontSize: '48px', color: '#8b5cf6', marginBottom: '16px' }} />
-              <h3>No Cryptography challenges available yet</h3>
-              <p>Check back soon for exciting challenges to test your decryption skills!</p>
+          {/* Crypto Challenges */}
+          <div className={`challenges-section ${activeCategory === 'crypto' ? 'active' : ''}`}>
+            <div className="section-header">
+              <h2>Cryptography Challenges</h2>
+              <span className="challenge-count">{getChallengesByCategory('crypto').length} {getChallengesByCategory('crypto').length === 1 ? 'Challenge' : 'Challenges'}</span>
             </div>
-          ) : (
-          <div className="challenges-grid">
+            {getChallengesByCategory('crypto').length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <FaLock />
+                </div>
+                <h3>No Cryptography challenges available</h3>
+                <p>Check back soon for exciting challenges to test your decryption skills!</p>
+              </div>
+            ) : (
+            <div className="challenges-grid">
             {getChallengesByCategory('crypto').map((challenge) => (
               <div
                 key={challenge.id}
                 className={`challenge-card ${teamData?.solvedChallenges.includes(challenge.id) ? 'solved' : ''}`}
-                data-challenge-id={challenge.id}
               >
                 <div className="challenge-header">
                   <h3>{challenge.title}</h3>
@@ -236,7 +434,9 @@ function Challenges() {
               </div>
             ))}
           </div>
-          )}
+            )}
+          </div>
+
         </div>
 
         {message.text && (
@@ -244,6 +444,98 @@ function Challenges() {
             {message.text}
           </div>
         )}
+      </main>
+
+      {/* Notification Panel */}
+      {showNotificationPanel && (
+        <>
+          <div className="notification-overlay" onClick={toggleNotificationPanel}></div>
+          <div className="notification-panel">
+            <div className="panel-header">
+              <h3>
+                <FaBell />
+                Announcements
+              </h3>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button onClick={markAllAsRead} className="btn-mark-read">
+                  Mark all read
+                </button>
+                <button className="panel-close" onClick={toggleNotificationPanel}>
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
+            <div className="panel-content">
+              {announcements.length === 0 ? (
+                <div className="no-notifications">
+                  <FaBell />
+                  <p>No announcements yet</p>
+                </div>
+              ) : (
+                announcements.map((announcement) => {
+                  const getIcon = () => {
+                    switch (announcement.type) {
+                      case 'info': return <FaInfoCircle />
+                      case 'warning': return <FaExclamationTriangle />
+                      case 'success': return <FaCheckCircle />
+                      default: return <FaBell />
+                    }
+                  }
+
+                  return (
+                    <div key={announcement._id} className={`notification-item ${announcement.type}`}>
+                      <div className="notification-icon">
+                        {getIcon()}
+                      </div>
+                      <div className="notification-content">
+                        <div className="notification-header">
+                          {announcement.pinned && (
+                            <span className="notification-type-badge">PINNED</span>
+                          )}
+                          <h4>{announcement.title}</h4>
+                          {announcement.priority === 'high' && (
+                            <span className="notification-priority">HIGH</span>
+                          )}
+                        </div>
+                        <p>{announcement.message}</p>
+                        {announcement.expiresAt && (
+                          <span className="notification-time">
+                            <FaClock />
+                            Expires: {new Date(announcement.expiresAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Live Announcement Pop-ups */}
+      <div className="announcement-popups">
+        {announcements
+          .filter(announcement => visiblePopups.includes(announcement._id))
+          .map((announcement) => (
+            <div key={announcement._id} className={`announcement-popup ${announcement.type}`}>
+              <div className="notification-icon">
+                {getAnnouncementIcon(announcement.type)}
+              </div>
+              <div className="notification-content">
+                <h4>{announcement.title}</h4>
+                <p>{announcement.message}</p>
+              </div>
+              <button 
+                className="popup-close" 
+                onClick={() => dismissPopup(announcement._id)}
+                aria-label="Dismiss"
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
       </div>
 
       {modalOpen && currentChallenge && (

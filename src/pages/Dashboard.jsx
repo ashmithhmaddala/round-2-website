@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket } from 'react-icons/fa'
-import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam } from '../utils/api'
-import CompetitionTimer from '../components/CompetitionTimer'
-import AnnouncementBanner from '../components/AnnouncementBanner'
+import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket, FaSignOutAlt, FaTrophy, FaChartLine, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell } from 'react-icons/fa'
+import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam, API_URL } from '../utils/api'
 import './Dashboard.css'
 
 function Dashboard() {
@@ -13,6 +11,13 @@ function Dashboard() {
   const [message, setMessage] = useState({ text: '', type: '' })
   const [teamName, setTeamName] = useState('')
   const [teamCode, setTeamCode] = useState('')
+  const [competition, setCompetition] = useState(null)
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [announcements, setAnnouncements] = useState([])
+  const [shownAnnouncements, setShownAnnouncements] = useState(new Set())
+  const [visiblePopups, setVisiblePopups] = useState([])
+  const [showNotificationPanel, setShowNotificationPanel] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -34,6 +39,132 @@ function Dashboard() {
 
     return () => clearInterval(sessionCheckInterval)
   }, [navigate])
+
+  // Fetch competition data
+  useEffect(() => {
+    fetchCompetition()
+    const interval = setInterval(fetchCompetition, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Calculate time left
+  useEffect(() => {
+    if (!competition) return
+
+    const calculateTimeLeft = () => {
+      const now = new Date()
+      let targetTime
+
+      if (competition.status === 'upcoming') {
+        targetTime = new Date(competition.startTime)
+      } else if (competition.status === 'live' || competition.status === 'frozen') {
+        targetTime = new Date(competition.endTime)
+      } else {
+        return null
+      }
+
+      const difference = targetTime - now
+      if (difference <= 0) return null
+
+      const hours = Math.floor((difference / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((difference / 1000 / 60) % 60)
+      const seconds = Math.floor((difference / 1000) % 60)
+
+      return { hours, minutes, seconds }
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft())
+    }, 1000)
+
+    setTimeLeft(calculateTimeLeft())
+    return () => clearInterval(timer)
+  }, [competition])
+
+  // Fetch announcements
+  useEffect(() => {
+    fetchAnnouncements()
+    const interval = setInterval(fetchAnnouncements, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchCompetition = async () => {
+    try {
+      const response = await fetch(`${API_URL}/competition`)
+      if (response.ok) {
+        const data = await response.json()
+        setCompetition(data)
+      }
+    } catch (err) {
+      console.error('Error fetching competition:', err)
+    }
+  }
+
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await fetch(`${API_URL}/announcements`)
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Get last read timestamp from localStorage
+        const lastReadTime = localStorage.getItem('lastReadTime') || '0'
+        const lastReadTimestamp = parseInt(lastReadTime)
+        
+        // On first load, mark all existing announcements as already shown (don't pop them up)
+        if (shownAnnouncements.size === 0 && data.announcements.length > 0) {
+          const existingIds = new Set(data.announcements.map(a => a._id))
+          setShownAnnouncements(existingIds)
+          
+          // Count only announcements created after last read time
+          const unreadAnnouncements = data.announcements.filter(
+            a => new Date(a.createdAt).getTime() > lastReadTimestamp
+          )
+          setUnreadCount(unreadAnnouncements.length)
+        } else {
+          // Show only NEW announcements as pop-ups
+          const newAnnouncements = data.announcements.filter(
+            announcement => !shownAnnouncements.has(announcement._id)
+          )
+          
+          if (newAnnouncements.length > 0) {
+            newAnnouncements.forEach(announcement => {
+              setShownAnnouncements(prev => new Set([...prev, announcement._id]))
+              setVisiblePopups(prev => [...prev, announcement._id])
+              
+              // Auto-dismiss after 30 seconds
+              setTimeout(() => {
+                dismissPopup(announcement._id)
+              }, 30000)
+            })
+            
+            setUnreadCount(prev => prev + newAnnouncements.length)
+          }
+        }
+        
+        setAnnouncements(data.announcements)
+      }
+    } catch (err) {
+      console.error('Error fetching announcements:', err)
+    }
+  }
+
+  const dismissPopup = (id) => {
+    setVisiblePopups(prev => prev.filter(popupId => popupId !== id))
+  }
+
+  const toggleNotificationPanel = () => {
+    setShowNotificationPanel(!showNotificationPanel)
+  }
+
+  const markAllAsRead = () => {
+    setUnreadCount(0)
+    // Save current timestamp to localStorage
+    localStorage.setItem('lastReadTime', Date.now().toString())
+  }
+
+  const clearAllAnnouncements = () => {
+    setVisiblePopups([])
+  }
 
   const checkTeamStatus = async (username) => {
     try {
@@ -122,169 +253,368 @@ function Dashboard() {
   }
 
   return (
-    <>
-      {/* --- Style Guide and rationale in comments --- */}
-      {/*
-        Font: 'Inter', system-ui, sans-serif
-        Colors: #10131a (bg), #181c24 (surface), #23283a (card), #3b82f6 (accent), #10b981 (accent-green), #6366f1 (accent-violet), #f1f5f9 (text), #94a3b8 (muted)
-        Spacing: 0.5rem, 1rem, 2rem, 3rem
-        Border radius: 8px, 16px, 24px
-        Shadow: 0 4px 32px 0 rgba(59,130,246,0.10)
-        Grid: 12-col, 1fr 1fr for cards, 1fr for mobile
-        Accessibility: AA/AAA contrast, focus rings, ARIA labels
-      */}
-      <nav className="dashboard-navbar-upg" aria-label="Main navigation">
-        <div className="dashboard-nav-container-upg">
-          <div className="dashboard-logo-upg">
-            <FaShieldAlt style={{ marginRight: 10, color: '#3b82f6' }} />
-            <span className="dashboard-title-upg">Cache Me If You Can</span>
-            <span className="dashboard-event-sub-upg">Cybersecurity & Ethical Hacking Club, NHCE</span>
+    <div className="dashboard-container">
+      {/* Navigation */}
+      <nav className="dashboard-nav">
+        <div className="nav-content">
+          <div className="nav-brand">
+            <div className="brand-icon">
+              <FaShieldAlt />
+            </div>
+            <div className="brand-text">
+              <h1>Cache Me If You Can</h1>
+              <p>NHCE Cybersecurity CTF</p>
+            </div>
           </div>
-          <div className="dashboard-nav-links-upg">
-            <span className="dashboard-welcome-upg">Welcome, <b>{currentUser}</b>!</span>
-            <button onClick={handleLogout} className="btn-upg btn-secondary-upg dashboard-logout-btn-upg">
-              Logout
+          <div className="nav-center">
+            {competition && timeLeft && (competition.status === 'live' || competition.status === 'upcoming' || competition.status === 'frozen') && (
+              <div className="nav-timer">
+                <FaClock className="timer-icon" />
+                <div className="timer-display">
+                  <span className="timer-unit">{String(timeLeft.hours).padStart(2, '0')}</span>
+                  <span className="timer-separator">:</span>
+                  <span className="timer-unit">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                  <span className="timer-separator">:</span>
+                  <span className="timer-unit">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                </div>
+                <span className="timer-label">{competition.status === 'upcoming' ? 'Starts in' : 'Ends in'}</span>
+              </div>
+            )}
+          </div>
+          <div className="nav-actions">
+            <button 
+              onClick={toggleNotificationPanel} 
+              className="btn-notifications"
+              aria-label="View notifications"
+            >
+              <FaBell />
+              {unreadCount > 0 && (
+                <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            <div className="user-info">
+              <span className="user-label">Logged in as</span>
+              <span className="user-name">{currentUser}</span>
+            </div>
+            <button onClick={handleLogout} className="btn-logout">
+              <FaSignOutAlt />
+              <span>Logout</span>
             </button>
           </div>
         </div>
       </nav>
-      <header className="dashboard-hero-upg">
-        <div className="dashboard-hero-content-upg">
-          <h1>Dashboard</h1>
-          <div className="dashboard-hero-underline-upg" />
-          <p>Manage your team, track your progress, and get ready for the challenges!</p>
-        </div>
-      </header>
-      <main className="dashboard-main-upg">
-        {/* Competition Timer */}
-        <div style={{ maxWidth: '1200px', margin: '0 auto 24px auto', padding: '0 16px' }}>
-          <CompetitionTimer />
-        </div>
 
-        {/* Announcements */}
-        <AnnouncementBanner />
+      {/* Main Content */}
+      <main className="dashboard-content">
+        <div className="content-wrapper">
+          {/* Page Header */}
+          <div className="page-header">
+            <div className="header-content">
+              <h2>Team Dashboard</h2>
+              <p className="header-subtitle">Manage your team and compete in challenges</p>
+            </div>
+          </div>
 
-        {!hasTeam ? (
-          <section className="dashboard-cards-upg" aria-label="Team Management">
-            <article className="dashboard-card-upg" aria-labelledby="create-team-heading">
-              <header className="dashboard-card-header-upg">
-                <h2 id="create-team-heading"><FaUsers style={{ color: '#3b82f6', marginRight: 8 }} /> Create New Team</h2>
-              </header>
-              <form onSubmit={handleCreateTeam} className="dashboard-form-upg" autoComplete="off" aria-label="Create Team">
-                <label htmlFor="teamName" className="dashboard-label-upg">Team Name</label>
-                <input
-                  type="text"
-                  id="teamName"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  required
-                  placeholder="Enter team name"
-                  className="dashboard-input-upg"
-                  aria-required="true"
-                  aria-invalid={message.type === 'error' && message.text.includes('Team name') ? 'true' : 'false'}
-                />
-                <span className="dashboard-error-upg" aria-live="polite">
-                  {message.type === 'error' && message.text.includes('Team name') ? message.text : ''}
-                </span>
-                <button type="submit" className="btn-upg btn-primary-upg dashboard-btn-upg">
-                  Create Team
-                </button>
-              </form>
-            </article>
-            <div className="dashboard-divider-upg" aria-hidden="true"><span>OR</span></div>
-            <article className="dashboard-card-upg" aria-labelledby="join-team-heading">
-              <header className="dashboard-card-header-upg">
-                <h2 id="join-team-heading"><FaUserPlus style={{ color: '#10b981', marginRight: 8 }} /> Join Existing Team</h2>
-              </header>
-              <form onSubmit={handleJoinTeam} className="dashboard-form-upg" autoComplete="off" aria-label="Join Team">
-                <label htmlFor="teamCode" className="dashboard-label-upg">Team Code</label>
-                <input
-                  type="text"
-                  id="teamCode"
-                  value={teamCode}
-                  onChange={(e) => setTeamCode(e.target.value)}
-                  required
-                  placeholder="Enter 6-digit code"
-                  className="dashboard-input-upg"
-                  pattern="\d{6}"
-                  aria-required="true"
-                  aria-invalid={message.type === 'error' && message.text.includes('code') ? 'true' : 'false'}
-                  inputMode="numeric"
-                  maxLength={6}
-                />
-                <span className="dashboard-error-upg" aria-live="polite">
-                  {message.type === 'error' && message.text.includes('code') ? message.text : ''}
-                </span>
-                <button type="submit" className="btn-upg btn-accent-upg dashboard-btn-upg">
-                  Join Team
-                </button>
-              </form>
-            </article>
-          </section>
-        ) : (
-          <section className="dashboard-team-upg" aria-label="Your Team">
-            <div className="dashboard-team-card-upg">
-              <div className="dashboard-team-header-upg">
-                <h2>Your Team</h2>
-              </div>
-              <div className="dashboard-team-info-upg">
-                <div className="dashboard-team-name-row-upg">
-                  <span className="dashboard-team-name-upg">{teamData.name}</span>
-                  <div className="dashboard-team-code-row-upg">
-                    <span className="dashboard-team-code-label-upg">Team Code:</span>
-                    <span className="dashboard-team-code-upg">{teamData.code}</span>
-                    <button onClick={handleCopyCode} className="btn-upg dashboard-copy-btn-upg" aria-label="Copy team code" tabIndex={0}>
-                      <FaCopy style={{ marginRight: 4 }} aria-hidden="true" /> Copy
+          {/* Team Management */}
+          {!hasTeam ? (
+            <div className="team-setup">
+              <div className="setup-grid">
+                {/* Create Team Card */}
+                <div className="setup-card create-card">
+                  <div className="setup-card-header">
+                    <div className="card-icon-wrapper create">
+                      <FaUsers />
+                    </div>
+                  </div>
+                  <div className="setup-card-content">
+                    <h3>Create Team</h3>
+                    <p className="card-description">Establish a new team and invite members using a secure team code</p>
+                  </div>
+                  <form onSubmit={handleCreateTeam} className="setup-form">
+                    <div className="input-field">
+                      <label htmlFor="teamName">Team Name</label>
+                      <input
+                        type="text"
+                        id="teamName"
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="Enter team name"
+                        required
+                        className="input-primary"
+                      />
+                    </div>
+                    <button type="submit" className="btn-action btn-create">
+                      <FaUsers />
+                      <span>Create Team</span>
                     </button>
-                  </div>
+                  </form>
                 </div>
-                <div className="dashboard-team-members-card-upg">
-                  <span className="dashboard-team-members-label-upg">Team Members</span>
-                  <ul className="dashboard-team-members-list-upg">
-                    {teamData.members.map((member) => (
-                      <li key={member} className="dashboard-team-member-item-upg">
-                        {member}
-                        {member === teamData.createdBy && <span className="dashboard-badge-upg">Leader</span>}
-                        {member === currentUser && <span className="dashboard-badge-self-upg">You</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="dashboard-team-stats-row-upg">
-                  <div className="dashboard-team-stat-upg">
-                    <span className="dashboard-team-stat-label-upg">Challenges Solved</span>
-                    <span className="dashboard-team-stat-value-upg">{teamData.solvedChallenges.length}</span>
+
+                {/* Join Team Card */}
+                <div className="setup-card join-card">
+                  <div className="setup-card-header">
+                    <div className="card-icon-wrapper join">
+                      <FaUserPlus />
+                    </div>
                   </div>
-                  <div className="dashboard-team-stat-upg">
-                    <span className="dashboard-team-stat-label-upg">Total Score</span>
-                    <span className="dashboard-team-stat-value-upg">{teamData.score}</span>
+                  <div className="setup-card-content">
+                    <h3>Join Team</h3>
+                    <p className="card-description">Enter your team's 6-digit access code to join</p>
                   </div>
-                </div>
-                <div className="dashboard-team-actions-row-upg">
-                  <button onClick={() => navigate('/challenges')} className="btn-upg btn-primary-upg dashboard-team-action-btn-upg" aria-label="Start Challenges" tabIndex={0}>
-                    <FaRocket style={{ marginRight: 6 }} aria-hidden="true" /> Start Challenges
-                  </button>
-                  <button onClick={handleLeaveTeam} className="btn-upg dashboard-team-leave-btn-upg dashboard-team-action-btn-upg" aria-label="Leave Team" tabIndex={0}>
-                    Leave Team
-                  </button>
+                  <form onSubmit={handleJoinTeam} className="setup-form">
+                    <div className="input-field">
+                      <label htmlFor="teamCode">Team Code</label>
+                      <input
+                        type="text"
+                        id="teamCode"
+                        value={teamCode}
+                        onChange={(e) => setTeamCode(e.target.value)}
+                        placeholder="000000"
+                        required
+                        maxLength={6}
+                        pattern="\d{6}"
+                        inputMode="numeric"
+                        className="input-primary input-code"
+                      />
+                    </div>
+                    <button type="submit" className="btn-action btn-join">
+                      <FaUserPlus />
+                      <span>Join Team</span>
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
-          </section>
-        )}
-        {message.text && (
-          <div
-            className={`message ${message.type} dashboard-message`}
-            style={{ display: 'block' }}
-            role={message.type === 'error' ? 'alert' : 'status'}
-            aria-live={message.type === 'error' ? 'assertive' : 'polite'}
-            tabIndex={-1}
-          >
-            {message.text}
-          </div>
-        )}
+          ) : (
+            <div className="team-overview">
+              {/* Team Header */}
+              <div className="team-info-banner">
+                <div className="banner-left">
+                  <div className="team-badge">
+                    <FaUsers />
+                  </div>
+                  <div className="team-details">
+                    <h3 className="team-title">{teamData.name}</h3>
+                    <div className="team-meta">
+                      <span className="meta-label">Team ID</span>
+                      <span className="meta-value">{teamData.code}</span>
+                      <button onClick={handleCopyCode} className="btn-copy-code">
+                        <FaCopy />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team Grid */}
+              <div className="dashboard-grid">
+                {/* Members Card */}
+                <div className="info-card members-section">
+                  <div className="info-card-header">
+                    <div className="header-title">
+                      <FaUsers />
+                      <h4>Team Members</h4>
+                    </div>
+                    <div className="count-badge">{teamData.members.length}/4</div>
+                  </div>
+                  <div className="card-body">
+                    <div className="members-list">
+                      {teamData.members.map((member) => (
+                        <div key={member} className="member-row">
+                          <div className="member-avatar">
+                            {member.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="member-data">
+                            <span className="member-name">{member}</span>
+                            <div className="member-badges">
+                              {member === teamData.createdBy && (
+                                <span className="badge badge-leader">Leader</span>
+                              )}
+                              {member === currentUser && (
+                                <span className="badge badge-current">You</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Card */}
+                <div className="team-card stats-card">
+                  <div className="stat-item">
+                    <div className="stat-icon trophy">
+                      <FaTrophy />
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Challenges Solved</span>
+                      <span className="stat-value">{teamData.solvedChallenges.length}</span>
+                    </div>
+                  </div>
+                  <div className="stat-divider"></div>
+                  <div className="stat-item">
+                    <div className="stat-icon score">
+                      <FaChartLine />
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Total Score</span>
+                      <span className="stat-value">{teamData.score}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="action-buttons">
+                <button onClick={() => navigate('/challenges')} className="btn-primary-action">
+                  <FaRocket />
+                  <span>Start Challenges</span>
+                </button>
+                <button onClick={handleLeaveTeam} className="btn-danger-action">
+                  <FaSignOutAlt />
+                  <span>Leave Team</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
-    </>
+
+      {/* Toast Message */}
+      {message.text && (
+        <div className={`toast ${message.type}`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Notification Panel */}
+      {showNotificationPanel && (
+        <>
+          <div 
+            className="notification-overlay" 
+            onClick={toggleNotificationPanel}
+          />
+          <div className="notification-panel">
+            <div className="panel-header">
+              <h3>
+                <FaBell />
+                <span>Notifications</span>
+              </h3>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button onClick={markAllAsRead} className="btn-mark-read">
+                  Mark all read
+                </button>
+                <button 
+                  onClick={toggleNotificationPanel} 
+                  className="panel-close"
+                  aria-label="Close notifications"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
+            <div className="panel-content">
+              {announcements.length === 0 ? (
+                <div className="no-notifications">
+                  <FaBell />
+                  <p>No announcements</p>
+                </div>
+              ) : (
+                announcements.map((announcement) => {
+                  const getIcon = () => {
+                    switch (announcement.type) {
+                      case 'info': return <FaInfoCircle />
+                      case 'warning': return <FaExclamationTriangle />
+                      case 'success': return <FaCheckCircle />
+                      case 'error': return <FaTimesCircle />
+                      case 'urgent': return <FaBell />
+                      default: return <FaInfoCircle />
+                    }
+                  }
+
+                  return (
+                    <div 
+                      key={announcement._id} 
+                      className={`notification-item ${announcement.type}`}
+                    >
+                      <div className="notification-icon">
+                        {getIcon()}
+                      </div>
+                      <div className="notification-content">
+                        <div className="notification-header">
+                          {announcement.pinned && (
+                            <span className="notification-type-badge">PINNED</span>
+                          )}
+                          <h4>{announcement.title}</h4>
+                          {announcement.priority === 'high' && (
+                            <span className="notification-priority">HIGH</span>
+                          )}
+                        </div>
+                        <p>{announcement.message}</p>
+                        {announcement.expiresAt && (
+                          <span className="notification-time">
+                            <FaClock />
+                            Expires: {new Date(announcement.expiresAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Live Announcement Pop-ups */}
+      <div className="announcement-popups">
+        {announcements
+          .filter(a => visiblePopups.includes(a._id))
+          .slice(0, 3)
+          .map((announcement, index) => {
+            const getIcon = () => {
+              switch (announcement.type) {
+                case 'info': return <FaInfoCircle />
+                case 'warning': return <FaExclamationTriangle />
+                case 'success': return <FaCheckCircle />
+                case 'error': return <FaTimesCircle />
+                case 'urgent': return <FaBell />
+                default: return <FaInfoCircle />
+              }
+            }
+
+            return (
+              <div 
+                key={announcement._id} 
+                className={`announcement-popup ${announcement.type} ${announcement.pinned ? 'pinned' : ''}`}
+                style={{ bottom: `${1 + (index * 6.5)}rem` }}
+              >
+                <div className="popup-icon">
+                  {getIcon()}
+                </div>
+                <div className="popup-content">
+                  {announcement.pinned && <span className="popup-badge">PINNED</span>}
+                  <h4>{announcement.title}</h4>
+                  <p>{announcement.message}</p>
+                  {announcement.priority === 'high' && (
+                    <span className="popup-priority">High Priority</span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => dismissPopup(announcement._id)} 
+                  className="popup-close"
+                  aria-label="Dismiss announcement"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            )
+          })}
+      </div>
+    </div>
   )
 }
 

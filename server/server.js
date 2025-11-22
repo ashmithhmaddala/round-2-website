@@ -22,6 +22,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 const allowedOrigins = [
   'https://round-2-website-bqpdjjm7d-ashmithhmaddalas-projects.vercel.app',
+  'https://round-2-website-9s311brt4-ashmithhmaddalas-projects.vercel.app',
   'https://nhceosintcrypto.online',
   'http://localhost:5173'
 ];

@@ -680,6 +680,18 @@ app.post('/api/teams/create', async (req, res) => {
   try {
     const { teamName, username } = req.body;
 
+    // Check if user is already in a team
+    const user = await User.findOne({ username });
+    if (user.teamId) {
+      return res.status(400).json({ error: 'You are already in a team' });
+    }
+
+    // Check if team name already exists
+    const existingTeam = await Team.findOne({ name: teamName });
+    if (existingTeam) {
+      return res.status(400).json({ error: 'Team name already taken' });
+    }
+
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -717,6 +729,12 @@ app.post('/api/teams/create', async (req, res) => {
 app.post('/api/teams/join', async (req, res) => {
   try {
     const { teamCode, username } = req.body;
+
+    // Check if user is already in a team
+    const user = await User.findOne({ username });
+    if (user.teamId && user.teamId !== teamCode) {
+      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
+    }
 
     // Find team
     const team = await Team.findOne({ code: teamCode });

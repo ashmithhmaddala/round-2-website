@@ -19,6 +19,8 @@ function Dashboard() {
   const [visiblePopups, setVisiblePopups] = useState([])
   const [showNotificationPanel, setShowNotificationPanel] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+  const [isJoiningTeam, setIsJoiningTeam] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -194,6 +196,8 @@ function Dashboard() {
       showMessage('Team name must be at least 3 characters long.', 'error')
       return
     }
+    
+    setIsCreatingTeam(true)
     try {
       const result = await createTeam(teamName, currentUser)
       // Immediately re-check team status to update UI
@@ -202,6 +206,8 @@ function Dashboard() {
       setTeamName('')
     } catch (error) {
       showMessage('Failed to create team: ' + error.message, 'error')
+    } finally {
+      setIsCreatingTeam(false)
     }
   }
 
@@ -211,6 +217,8 @@ function Dashboard() {
       showMessage('Team code must be 6 digits.', 'error')
       return
     }
+    
+    setIsJoiningTeam(true)
     try {
       const result = await joinTeam(teamCode, currentUser)
       // Immediately re-check team status to update UI
@@ -219,6 +227,8 @@ function Dashboard() {
       setTeamCode('')
     } catch (error) {
       showMessage('Failed to join team: ' + error.message, 'error')
+    } finally {
+      setIsJoiningTeam(false)
     }
   }
 
@@ -351,9 +361,9 @@ function Dashboard() {
                         className="input-primary"
                       />
                     </div>
-                    <button type="submit" className="btn-action btn-create">
+                    <button type="submit" className="btn-action btn-create" disabled={isCreatingTeam}>
                       <FaUsers />
-                      <span>Create Team</span>
+                      <span>{isCreatingTeam ? 'Creating...' : 'Create Team'}</span>
                     </button>
                   </form>
                 </div>
@@ -385,9 +395,9 @@ function Dashboard() {
                         className="input-primary input-code"
                       />
                     </div>
-                    <button type="submit" className="btn-action btn-join">
+                    <button type="submit" className="btn-action btn-join" disabled={isJoiningTeam}>
                       <FaUserPlus />
-                      <span>Join Team</span>
+                      <span>{isJoiningTeam ? 'Joining...' : 'Join Team'}</span>
                     </button>
                   </form>
                 </div>

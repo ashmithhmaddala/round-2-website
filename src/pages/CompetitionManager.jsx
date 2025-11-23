@@ -90,6 +90,7 @@ const CompetitionManager = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
         },
         body: JSON.stringify(submitData),
       });
@@ -125,6 +126,7 @@ const CompetitionManager = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
         },
         body: JSON.stringify({ status: newStatus }),
       });

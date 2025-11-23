@@ -76,13 +76,22 @@ const CompetitionManager = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Convert local datetime-local strings to ISO strings (UTC)
+    const submitData = {
+      ...formData,
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString(),
+      freezeTime: formData.freezeTime ? new Date(formData.freezeTime).toISOString() : undefined
+    };
+
     try {
       const response = await fetch(`${API_URL}/admin/competition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {

@@ -56,7 +56,8 @@ function Admin() {
 
   useEffect(() => {
     const auth = getAdminAuth()
-    if (!auth) {
+    const token = localStorage.getItem('adminToken')
+    if (!auth || !token) {
       navigate('/admin-login')
       return
     }

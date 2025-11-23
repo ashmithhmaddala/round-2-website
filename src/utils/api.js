@@ -221,21 +221,27 @@ export const adminLogin = async (username, password) => {
 };
 
 export const getAnalytics = async () => {
-  const response = await fetch(`${API_URL}/admin/analytics`);
+  const response = await fetch(`${API_URL}/admin/analytics`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
 };
 
 export const getAllAdmins = async () => {
-  const response = await fetch(`${API_URL}/admin/admins`);
+  const response = await fetch(`${API_URL}/admin/admins`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
 };
 
 export const getAllUsers = async () => {
-  const response = await fetch(`${API_URL}/admin/users`);
+  const response = await fetch(`${API_URL}/admin/users`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
@@ -307,21 +313,27 @@ export const resetPassword = async (targetUsername, newPassword, requestingUsern
 // ==================== ANALYTICS ====================
 
 export const getRealtimeAnalytics = async () => {
-  const response = await fetch(`${API_URL}/admin/analytics/realtime`);
+  const response = await fetch(`${API_URL}/admin/analytics/realtime`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
 };
 
 export const getChallengeStatistics = async () => {
-  const response = await fetch(`${API_URL}/admin/analytics/challenges`);
+  const response = await fetch(`${API_URL}/admin/analytics/challenges`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
 };
 
 export const getSolveTimeline = async () => {
-  const response = await fetch(`${API_URL}/admin/analytics/timeline`);
+  const response = await fetch(`${API_URL}/admin/analytics/timeline`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;

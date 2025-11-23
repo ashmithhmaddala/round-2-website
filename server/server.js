@@ -414,7 +414,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await User.findOne({ email }) || await Admin.findOne({ email });
+    let user = await User.findOne({ email });
+    let isUser = true;
+    
+    if (!user) {
+        user = await Admin.findOne({ email });
+        isUser = false;
+    }
 
     if (!user) {
       return res.status(404).json({ 
@@ -428,8 +434,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
 
     // Save token to user
-    user.resetToken = resetToken;
-    user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
+    if (isUser) {
+        user.resetToken = resetToken;
+        user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
+    } else {
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    }
     await user.save();
 
     // Send email
@@ -475,23 +486,50 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-    const user = await User.findOne({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } }) ||
-                 await Admin.findOne({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } });
+    
+    // Check User
+    let user = await User.findOne({ resetToken: token });
+    let isUser = true;
+
+    // Check Admin if not User
+    if (!user) {
+      user = await Admin.findOne({ resetPasswordToken: token });
+      isUser = false;
+    }
 
     if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired token' });
+      return res.status(400).json({ message: 'Invalid reset link. It may be incorrect or has already been used.' });
+    }
+
+    // Check Expiry
+    const now = Date.now();
+    if (isUser) {
+      if (!user.resetTokenExpiry || user.resetTokenExpiry < now) {
+        return res.status(400).json({ message: 'This reset link has expired. Please request a new one.' });
+      }
+    } else {
+      if (!user.resetPasswordExpires || user.resetPasswordExpires < now) {
+        return res.status(400).json({ message: 'This reset link has expired. Please request a new one.' });
+      }
     }
 
     // Update password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
+    
+    if (isUser) {
+      user.resetToken = undefined;
+      user.resetTokenExpiry = undefined;
+    } else {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+    }
+    
     await user.save();
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -557,8 +595,16 @@ app.post('/api/auth/reset-admin-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
   try {
-    const admin = await Admin.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
-    if (!admin) return res.status(400).json({ message: 'Invalid or expired token' });
+    const admin = await Admin.findOne({ resetPasswordToken: token });
+    
+    if (!admin) {
+      return res.status(400).json({ message: 'Invalid reset link. It may be incorrect or has already been used.' });
+    }
+
+    if (admin.resetPasswordExpires < Date.now()) {
+      return res.status(400).json({ message: 'This reset link has expired. Please request a new one.' });
+    }
+
     admin.password = await bcrypt.hash(password, 10);
     admin.resetPasswordToken = undefined;
     admin.resetPasswordExpires = undefined;

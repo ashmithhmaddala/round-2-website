@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 };
 
 // Helper to get admin headers
-const getAdminHeaders = () => {
+export const getAdminHeaders = () => {
   const token = localStorage.getItem('adminToken');
   return {
     'Content-Type': 'application/json',

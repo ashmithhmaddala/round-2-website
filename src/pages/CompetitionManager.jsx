@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL } from '../utils/api';
+import { API_URL, getAdminHeaders } from '../utils/api';
 import { FaClock, FaPlay, FaPause, FaStop, FaSnowflake, FaEdit, FaSave, FaTimes, FaCalendarAlt, FaHistory } from 'react-icons/fa';
 import { LuTrophy } from "react-icons/lu";
 import '../admin.css';
@@ -27,7 +27,13 @@ const CompetitionManager = () => {
 
   const fetchCompetition = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/competition`);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/competition`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch competition');
       }
@@ -86,9 +92,11 @@ const CompetitionManager = () => {
     };
 
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/competition`, {
         method: 'PUT',
         headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
           'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
         },
@@ -122,9 +130,11 @@ const CompetitionManager = () => {
     }
 
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/competition/status`, {
         method: 'PUT',
         headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
           'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
         },

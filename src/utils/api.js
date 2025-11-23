@@ -1,12 +1,21 @@
 // API Base URL - uses environment variable for flexibility
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Helper to get admin headers
-const getAdminHeaders = () => {
-  const username = localStorage.getItem('currentAdminUsername');
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
-    'x-admin-username': username || 'admin'
+    'Authorization': token ? `Bearer ${token}` : ''
+  };
+};
+
+// Helper to get admin headers
+const getAdminHeaders = () => {
+  const token = localStorage.getItem('adminToken');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
   };
 };
 
@@ -31,6 +40,11 @@ export const login = async (username, password) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
+  
+  if (data.token) {
+    localStorage.setItem('authToken', data.token);
+  }
+  
   return data;
 };
 
@@ -46,7 +60,7 @@ export const getUser = async (username) => {
 export const createTeam = async (teamName, username) => {
   const response = await fetch(`${API_URL}/teams/create`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ teamName, username })
   });
   const data = await response.json();
@@ -57,7 +71,7 @@ export const createTeam = async (teamName, username) => {
 export const joinTeam = async (teamCode, username) => {
   const response = await fetch(`${API_URL}/teams/join`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ teamCode, username })
   });
   const data = await response.json();
@@ -75,7 +89,7 @@ export const getTeam = async (code) => {
 export const leaveTeam = async (username, teamCode) => {
   const response = await fetch(`${API_URL}/teams/leave`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ username, teamCode })
   });
   const data = await response.json();
@@ -111,7 +125,7 @@ export const getChallenges = async () => {
 export const submitFlag = async (challengeId, flag, username, teamCode) => {
   const response = await fetch(`${API_URL}/challenges/submit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ challengeId, flag, username, teamCode })
   });
   const data = await response.json();
@@ -156,10 +170,10 @@ export const uploadChallengeFile = async (challengeId, file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  const username = localStorage.getItem('currentAdminUsername');
+  const token = localStorage.getItem('adminToken');
   const headers = {};
-  if (username) {
-    headers['x-admin-username'] = username;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_URL}/challenges/${challengeId}/files`, {
@@ -198,6 +212,11 @@ export const adminLogin = async (username, password) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
+  
+  if (data.token) {
+    localStorage.setItem('adminToken', data.token);
+  }
+  
   return data;
 };
 
@@ -448,8 +467,10 @@ export const updateLastActivity = () => {
 
 export const logout = () => {
   localStorage.removeItem('currentUser');
+  localStorage.removeItem('authToken');
   localStorage.removeItem('adminAuth');
   localStorage.removeItem('adminAuthTime');
+  localStorage.removeItem('adminToken');
   window.location.href = '/';
 };
 

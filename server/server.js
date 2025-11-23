@@ -11,6 +11,8 @@ import multer from 'multer';
 import { GridFSBucket } from 'mongodb';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
+import { verifyToken, verifyAdmin } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,6 +126,16 @@ const passwordResetLimiter = rateLimit({
   max: 1, // limit each IP to 1 request per windowMs
   message: { error: 'Too many password reset requests, please try again after 30 minutes.' }
 });
+
+// Global Rate Limiter for 200 users
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' }
+});
+app.use('/api/', globalLimiter);
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/challenges/submit', flagLimiter);
@@ -433,8 +445,15 @@ app.post('/api/auth/login', async (req, res) => {
 
     await logAction('LOGIN', user.username, 'user', 'User logged in successfully', req);
 
+    const token = jwt.sign(
+      { username: user.username, id: user._id, role: 'user' },
+      process.env.JWT_SECRET || 'fallback_secret_do_not_use_in_prod',
+      { expiresIn: '24h' }
+    );
+
     res.json({
       success: true,
+      token,
       user: {
         username: user.username,
         email: user.email,
@@ -668,9 +687,10 @@ app.post('/api/auth/reset-admin-password', async (req, res) => {
 // ==================== TEAM ROUTES ====================
 
 // Create team
-app.post('/api/teams/create', async (req, res) => {
+app.post('/api/teams/create', verifyToken, async (req, res) => {
   try {
-    const { teamName, username } = req.body;
+    const { teamName } = req.body;
+    const username = req.user.username;
 
     // Check if user is already in a team
     const user = await User.findOne({ username });
@@ -718,9 +738,10 @@ app.post('/api/teams/create', async (req, res) => {
 });
 
 // Join team
-app.post('/api/teams/join', async (req, res) => {
+app.post('/api/teams/join', verifyToken, async (req, res) => {
   try {
-    const { teamCode, username } = req.body;
+    const { teamCode } = req.body;
+    const username = req.user.username;
 
     // Check if user is already in a team
     const user = await User.findOne({ username });
@@ -797,9 +818,10 @@ app.get('/api/teams/:code', async (req, res) => {
 });
 
 // Leave team
-app.post('/api/teams/leave', async (req, res) => {
+app.post('/api/teams/leave', verifyToken, async (req, res) => {
   try {
-    const { username, teamCode } = req.body;
+    const { teamCode } = req.body;
+    const username = req.user.username;
 
     const team = await Team.findOne({ code: teamCode });
     if (!team) {
@@ -884,9 +906,10 @@ app.get('/api/challenges', async (req, res) => {
 });
 
 // Submit flag
-app.post('/api/challenges/submit', async (req, res) => {
+app.post('/api/challenges/submit', verifyToken, async (req, res) => {
   try {
-    const { challengeId, flag, username, teamCode } = req.body;
+    const { challengeId, flag, teamCode } = req.body;
+    const username = req.user.username; // Securely get username from token
 
     // Check competition status
     const competition = await Competition.findOne().sort({ createdAt: -1 });
@@ -1022,7 +1045,7 @@ app.post('/api/challenges/submit', async (req, res) => {
 });
 
 // Create challenge (admin)
-app.post('/api/challenges', async (req, res) => {
+app.post('/api/challenges', verifyAdmin, async (req, res) => {
   try {
     const { flag, ...rest } = req.body;
     
@@ -1053,7 +1076,7 @@ app.post('/api/challenges', async (req, res) => {
 });
 
 // Update challenge (admin)
-app.put('/api/challenges/:id', async (req, res) => {
+app.put('/api/challenges/:id', verifyAdmin, async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (updateData.flag) {
@@ -1081,7 +1104,7 @@ app.put('/api/challenges/:id', async (req, res) => {
 });
 
 // Delete challenge (admin)
-app.delete('/api/challenges/:id', async (req, res) => {
+app.delete('/api/challenges/:id', verifyAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (challenge && challenge.files && challenge.files.length > 0) {
@@ -1121,7 +1144,7 @@ const upload = multer({
 });
 
 // Upload file for a challenge (admin)
-app.post('/api/challenges/:id/files', upload.single('file'), async (req, res) => {
+app.post('/api/challenges/:id/files', verifyAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1234,7 +1257,7 @@ app.get('/api/challenges/:id/files/:filename', async (req, res) => {
 });
 
 // Delete file from a challenge (admin)
-app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
+app.delete('/api/challenges/:id/files/:filename', verifyAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1276,7 +1299,7 @@ app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
 // ==================== ADMIN ROUTES ====================
 
 // Get all users (admin)
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     res.json(users);
@@ -1286,7 +1309,7 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 // Toggle user ban status
-app.patch('/api/admin/users/:id/ban', async (req, res) => {
+app.patch('/api/admin/users/:id/ban', verifyAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -1313,7 +1336,7 @@ app.patch('/api/admin/users/:id/ban', async (req, res) => {
 });
 
 // Delete user (admin)
-app.delete('/api/admin/users/:id', async (req, res) => {
+app.delete('/api/admin/users/:id', verifyAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -1390,10 +1413,18 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
     
+    // Generate JWT token
+    const token = jwt.sign(
+      { username: admin.username, id: admin._id, role: 'admin' },
+      process.env.JWT_SECRET || 'fallback_secret_do_not_use_in_prod',
+      { expiresIn: '24h' }
+    );
+    
     await logAction('ADMIN_LOGIN', admin.username, 'admin', 'Admin logged in successfully', req);
     
     res.json({ 
       success: true,
+      token,
       admin: {
         username: admin.username,
         email: admin.email,
@@ -1406,7 +1437,7 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 // Get all admins
-app.get('/api/admin/admins', async (req, res) => {
+app.get('/api/admin/admins', verifyAdmin, async (req, res) => {
   try {
     const admins = await Admin.find().select('-password').sort({ createdAt: -1 });
     res.json(admins);
@@ -1416,7 +1447,7 @@ app.get('/api/admin/admins', async (req, res) => {
 });
 
 // Create new admin (only super_admin can do this)
-app.post('/api/admin/admins', async (req, res) => {
+app.post('/api/admin/admins', verifyAdmin, async (req, res) => {
   try {
     const { username, email, password, createdBy } = req.body;
     
@@ -1460,7 +1491,7 @@ app.post('/api/admin/admins', async (req, res) => {
 });
 
 // Change admin password
-app.put('/api/admin/change-password', async (req, res) => {
+app.put('/api/admin/change-password', verifyAdmin, async (req, res) => {
   try {
     const { username, currentPassword, newPassword } = req.body;
     
@@ -1506,7 +1537,7 @@ app.put('/api/admin/change-password', async (req, res) => {
 });
 
 // Reset admin password (for super admin)
-app.put('/api/admin/reset-password', async (req, res) => {
+app.put('/api/admin/reset-password', verifyAdmin, async (req, res) => {
   try {
     const { targetUsername, newPassword, requestingUsername } = req.body;
     
@@ -1552,7 +1583,7 @@ app.put('/api/admin/reset-password', async (req, res) => {
 });
 
 // Delete admin
-app.delete('/api/admin/admins/:username', async (req, res) => {
+app.delete('/api/admin/admins/:username', verifyAdmin, async (req, res) => {
   try {
     const admin = await Admin.findOne({ username: req.params.username });
     
@@ -1576,7 +1607,7 @@ app.delete('/api/admin/admins/:username', async (req, res) => {
 });
 
 // Get analytics
-app.get('/api/admin/analytics', async (req, res) => {
+app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     const teams = await Team.find().sort({ score: -1 });
     const challenges = await Challenge.find();
@@ -1748,7 +1779,7 @@ app.post('/api/admin/migrate-challenge-visibility', async (req, res) => {
 // ===== REAL-TIME ANALYTICS ENDPOINTS =====
 
 // Get real-time analytics data
-app.get('/api/admin/analytics/realtime', async (req, res) => {
+app.get('/api/admin/analytics/realtime', verifyAdmin, async (req, res) => {
   try {
     const [teams, challenges, solves] = await Promise.all([
       Team.find(),
@@ -1843,7 +1874,7 @@ app.get('/api/admin/analytics/realtime', async (req, res) => {
 });
 
 // Get challenge statistics
-app.get('/api/admin/analytics/challenges', async (req, res) => {
+app.get('/api/admin/analytics/challenges', verifyAdmin, async (req, res) => {
   try {
     const challenges = await Challenge.find();
     
@@ -1867,7 +1898,7 @@ app.get('/api/admin/analytics/challenges', async (req, res) => {
 });
 
 // Toggle challenge visibility
-app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
+app.patch('/api/admin/challenges/:id/toggle-visibility', verifyAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1897,7 +1928,7 @@ app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
 });
 
 // Toggle challenge disabled status (admin)
-app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
+app.patch('/api/admin/challenges/:id/toggle-disabled', verifyAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1927,7 +1958,7 @@ app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
 });
 
 // Get solve timeline (for graphs)
-app.get('/api/admin/analytics/timeline', async (req, res) => {
+app.get('/api/admin/analytics/timeline', verifyAdmin, async (req, res) => {
   try {
     const solves = await Solve.find()
       .populate('challenge')
@@ -1956,7 +1987,7 @@ app.get('/api/admin/analytics/timeline', async (req, res) => {
 });
 
 // Get all logs
-app.get('/api/admin/logs', async (req, res) => {
+app.get('/api/admin/logs', verifyAdmin, async (req, res) => {
   try {
     const logs = await Log.find().sort({ timestamp: -1 }).limit(500);
     res.json(logs);
@@ -1987,7 +2018,7 @@ app.get('/api/announcements', async (req, res) => {
 });
 
 // Get all announcements (admin - includes inactive)
-app.get('/api/admin/announcements', async (req, res) => {
+app.get('/api/admin/announcements', verifyAdmin, async (req, res) => {
   try {
     const announcements = await Announcement.find()
       .sort({ pinned: -1, createdAt: -1 });
@@ -1998,7 +2029,7 @@ app.get('/api/admin/announcements', async (req, res) => {
 });
 
 // Create announcement
-app.post('/api/admin/announcements', async (req, res) => {
+app.post('/api/admin/announcements', verifyAdmin, async (req, res) => {
   try {
     const { title, message, type, priority, pinned, expiresAt, createdBy } = req.body;
     
@@ -2027,7 +2058,7 @@ app.post('/api/admin/announcements', async (req, res) => {
 });
 
 // Update announcement
-app.put('/api/admin/announcements/:id', async (req, res) => {
+app.put('/api/admin/announcements/:id', verifyAdmin, async (req, res) => {
   try {
     const { title, message, type, priority, pinned, expiresAt, active } = req.body;
     
@@ -2060,7 +2091,7 @@ app.put('/api/admin/announcements/:id', async (req, res) => {
 });
 
 // Delete announcement
-app.delete('/api/admin/announcements/:id', async (req, res) => {
+app.delete('/api/admin/announcements/:id', verifyAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findByIdAndDelete(req.params.id);
     
@@ -2077,7 +2108,7 @@ app.delete('/api/admin/announcements/:id', async (req, res) => {
 });
 
 // Toggle announcement active status
-app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
+app.patch('/api/admin/announcements/:id/toggle', verifyAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     
@@ -2101,7 +2132,7 @@ app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
 });
 
 // Toggle announcement pin status
-app.patch('/api/admin/announcements/:id/pin', async (req, res) => {
+app.patch('/api/admin/announcements/:id/pin', verifyAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     
@@ -2164,7 +2195,7 @@ app.get('/api/competition', async (req, res) => {
 });
 
 // Get competition settings (admin)
-app.get('/api/admin/competition', async (req, res) => {
+app.get('/api/admin/competition', verifyAdmin, async (req, res) => {
   try {
     const competition = await Competition.findOne().sort({ createdAt: -1 });
     if (!competition) {
@@ -2177,7 +2208,7 @@ app.get('/api/admin/competition', async (req, res) => {
 });
 
 // Update competition settings (admin)
-app.put('/api/admin/competition', async (req, res) => {
+app.put('/api/admin/competition', verifyAdmin, async (req, res) => {
   try {
     const { name, description, startTime, endTime, freezeTime, allowLateSubmissions, showScoreboard } = req.body;
     
@@ -2237,7 +2268,7 @@ app.put('/api/admin/competition', async (req, res) => {
 });
 
 // Update competition status manually (admin)
-app.put('/api/admin/competition/status', async (req, res) => {
+app.put('/api/admin/competition/status', verifyAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     

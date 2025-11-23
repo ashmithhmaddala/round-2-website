@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
   resetTokenExpiry: {
     type: Date,
     default: null
+  },
+  banned: {
+    type: Boolean,
+    default: false
   }
 });
 

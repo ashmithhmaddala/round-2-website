@@ -22,6 +22,10 @@ const teamSchema = new mongoose.Schema({
   solvedChallenges: [{
     type: String
   }],
+  lastSolveTime: {
+    type: Date,
+    default: null
+  },
   createdBy: {
     type: String,
     required: true

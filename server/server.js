@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import multer from 'multer';
+import { GridFSBucket } from 'mongodb';
 
 import User from './models/User.js';
 import Team from './models/Team.js';
@@ -21,6 +23,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// GridFS bucket - will be initialized after MongoDB connection
+let gfsBucket;
+
 // Middleware
 const allowedOrigins = [
   'https://round-2-website-bqpdjjm7d-ashmithhmaddalas-projects.vercel.app',
@@ -31,6 +36,8 @@ const allowedOrigins = [
   'http://www.nhceosintcrypto.online',
   'https://api.nhceosintcrypto.online',
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:5000'
 ];
 app.use(helmet({
@@ -69,6 +76,14 @@ app.use('/api/challenges/submit', flagLimiter);
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
+    
+    // Initialize GridFS bucket
+    const db = mongoose.connection.db;
+    gfsBucket = new GridFSBucket(db, {
+      bucketName: 'challengeFiles'
+    });
+    console.log('✅ GridFS bucket initialized');
+    
     initializeDefaultChallenges();
     initializeSuperAdmin();
     initializeCompetition();
@@ -273,6 +288,11 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ $or: [{ username }, { email: username }] });
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if banned
+    if (user.banned) {
+      return res.status(403).json({ error: 'This account has been banned for violating the rules.' });
     }
 
     // Check password
@@ -748,13 +768,15 @@ app.post('/api/challenges/submit', async (req, res) => {
     if (team) {
       team.solvedChallenges.push(challengeId);
       team.score += challenge.points;
+      team.lastSolveTime = new Date();
       await team.save();
     }
 
     res.json({ 
       success: true, 
       message: isFirstBlood ? '🎉 First Blood! Challenge solved!' : 'Challenge solved successfully',
-      firstBlood: isFirstBlood
+      firstBlood: isFirstBlood,
+      points: challenge.points
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -798,6 +820,18 @@ app.put('/api/challenges/:id', async (req, res) => {
 // Delete challenge (admin)
 app.delete('/api/challenges/:id', async (req, res) => {
   try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (challenge && challenge.files && challenge.files.length > 0) {
+      // Delete all associated files from GridFS
+      for (const file of challenge.files) {
+        try {
+          await gfsBucket.delete(file.gridFsId);
+        } catch (err) {
+          console.error('Error deleting file from GridFS:', err);
+        }
+      }
+    }
+    
     await Challenge.findOneAndDelete({ id: req.params.id });
     res.json({ success: true });
   } catch (error) {
@@ -805,7 +839,234 @@ app.delete('/api/challenges/:id', async (req, res) => {
   }
 });
 
+// ==================== FILE UPLOAD ROUTES ====================
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow all file types for CTF challenges
+    cb(null, true);
+  }
+});
+
+// Upload file for a challenge (admin)
+app.post('/api/challenges/:id/files', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Check if GridFS is initialized
+    if (!gfsBucket) {
+      return res.status(500).json({ error: 'File storage not initialized. Please restart the server.' });
+    }
+
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    // Create a unique filename
+    const filename = `${Date.now()}-${req.file.originalname}`;
+
+    // Create upload stream to GridFS
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      metadata: {
+        challengeId: req.params.id,
+        originalName: req.file.originalname,
+        mimetype: req.file.mimetype
+      }
+    });
+
+    // Write file buffer to GridFS
+    uploadStream.end(req.file.buffer);
+
+    // Wait for upload to finish
+    await new Promise((resolve, reject) => {
+      uploadStream.on('finish', resolve);
+      uploadStream.on('error', reject);
+    });
+
+    // Add file metadata to challenge
+    const fileMetadata = {
+      filename: filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      gridFsId: uploadStream.id,
+      uploadedAt: new Date()
+    };
+
+    // Update challenge with new file (using updateOne to avoid validation issues)
+    await Challenge.updateOne(
+      { id: req.params.id },
+      { $push: { files: fileMetadata } }
+    );
+
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      file: fileMetadata
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Download file from a challenge
+app.get('/api/challenges/:id/files/:filename', async (req, res) => {
+  try {
+    // Check if GridFS is initialized
+    if (!gfsBucket) {
+      return res.status(500).json({ error: 'File storage not initialized. Please restart the server.' });
+    }
+
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const fileMetadata = challenge.files?.find(f => f.filename === req.params.filename);
+    if (!fileMetadata) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Set response headers
+    res.set({
+      'Content-Type': fileMetadata.mimetype,
+      'Content-Disposition': `attachment; filename="${fileMetadata.originalName}"`,
+      'Content-Length': fileMetadata.size
+    });
+
+    // Create download stream from GridFS
+    const downloadStream = gfsBucket.openDownloadStream(fileMetadata.gridFsId);
+
+    // Handle stream errors
+    downloadStream.on('error', (error) => {
+      console.error('Download stream error:', error);
+      if (!res.headersSent) {
+        res.status(404).json({ error: 'File not found in storage' });
+      }
+    });
+
+    // Pipe the file to response
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error('File download error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
+
+// Delete file from a challenge (admin)
+app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const fileMetadata = challenge.files?.find(f => f.filename === req.params.filename);
+    if (!fileMetadata) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Delete from GridFS
+    try {
+      if (gfsBucket) {
+        await gfsBucket.delete(fileMetadata.gridFsId);
+      }
+    } catch (err) {
+      console.error('Error deleting from GridFS:', err);
+    }
+
+    // Remove from challenge (using updateOne to avoid validation issues)
+    await Challenge.updateOne(
+      { id: req.params.id },
+      { $pull: { files: { filename: req.params.filename } } }
+    );
+
+    res.json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    console.error('File delete error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== ADMIN ROUTES ====================
+
+// Get all users (admin)
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle user ban status
+app.patch('/api/admin/users/:id/ban', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.banned = !user.banned;
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      message: `User ${user.banned ? 'banned' : 'unbanned'} successfully`,
+      user: {
+        _id: user._id,
+        username: user.username,
+        banned: user.banned
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete user (admin)
+app.delete('/api/admin/users/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If user is in a team, remove them
+    if (user.teamId) {
+      const team = await Team.findOne({ code: user.teamId });
+      if (team) {
+        team.members = team.members.filter(m => m !== user.username);
+        if (team.members.length === 0) {
+          await Team.findOneAndDelete({ code: user.teamId });
+        } else {
+          await team.save();
+        }
+      }
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Admin login
 // Setup admin (one-time use - can be disabled after setup)

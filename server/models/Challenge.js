@@ -48,6 +48,14 @@ const challengeSchema = new mongoose.Schema({
     teamName: { type: String },
     solvedAt: { type: Date }
   },
+  files: [{
+    filename: { type: String },
+    originalName: { type: String },
+    size: { type: Number },
+    mimetype: { type: String },
+    gridFsId: { type: mongoose.Schema.Types.ObjectId },
+    uploadedAt: { type: Date, default: Date.now }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

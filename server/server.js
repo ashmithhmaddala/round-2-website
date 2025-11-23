@@ -480,15 +480,17 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
 
     // Save token to user
     if (isUser) {
-        user.resetToken = resetToken;
+        user.resetToken = resetTokenHash;
         user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
     } else {
-        user.resetPasswordToken = resetToken;
+        user.resetPasswordToken = resetTokenHash;
         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     }
     await user.save();
@@ -536,14 +538,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     
     // Check User
-    let user = await User.findOne({ resetToken: token });
+    let user = await User.findOne({ resetToken: tokenHash });
     let isUser = true;
 
     // Check Admin if not User
     if (!user) {
-      user = await Admin.findOne({ resetPasswordToken: token });
+      user = await Admin.findOne({ resetPasswordToken: tokenHash });
       isUser = false;
     }
 
@@ -593,7 +596,9 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
     const admin = await Admin.findOne({ email });
     if (!admin) return res.status(404).json({ message: 'Admin not found' });
     const token = crypto.randomBytes(32).toString('hex');
-    admin.resetPasswordToken = token;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    
+    admin.resetPasswordToken = tokenHash;
     admin.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await admin.save();
     // Send email
@@ -650,7 +655,8 @@ app.post('/api/auth/reset-admin-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ message: 'Token and password are required' });
   try {
-    const admin = await Admin.findOne({ resetPasswordToken: token });
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const admin = await Admin.findOne({ resetPasswordToken: tokenHash });
     
     if (!admin) {
       return res.status(400).json({ message: 'Invalid reset link. It may be incorrect or has already been used.' });

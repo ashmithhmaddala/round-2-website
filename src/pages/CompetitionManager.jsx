@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_URL } from '../utils/api';
 import { FaClock, FaPlay, FaPause, FaStop, FaSnowflake, FaEdit, FaSave, FaTimes, FaCalendarAlt, FaHistory } from 'react-icons/fa';
 import { LuTrophy } from "react-icons/lu";
@@ -9,7 +9,6 @@ const CompetitionManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const isEditingRef = useRef(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -19,10 +18,6 @@ const CompetitionManager = () => {
     allowLateSubmissions: false,
     showScoreboard: true
   });
-
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
 
   useEffect(() => {
     fetchCompetition();
@@ -38,25 +33,26 @@ const CompetitionManager = () => {
       }
       const data = await response.json();
       setCompetition(data);
-      
-      // Only update form data if not editing to avoid overwriting user input
-      if (!isEditingRef.current) {
-        setFormData({
-          name: data.name,
-          description: data.description,
-          startTime: formatDateTimeLocal(data.startTime),
-          endTime: formatDateTimeLocal(data.endTime),
-          freezeTime: data.freezeTime ? formatDateTimeLocal(data.freezeTime) : '',
-          allowLateSubmissions: data.allowLateSubmissions,
-          showScoreboard: data.showScoreboard
-        });
-      }
-      
       setLoading(false);
     } catch (err) {
       setError(err.message);
       setLoading(false);
     }
+  };
+
+  const startEditing = () => {
+    if (competition) {
+      setFormData({
+        name: competition.name,
+        description: competition.description,
+        startTime: formatDateTimeLocal(competition.startTime),
+        endTime: formatDateTimeLocal(competition.endTime),
+        freezeTime: competition.freezeTime ? formatDateTimeLocal(competition.freezeTime) : '',
+        allowLateSubmissions: competition.allowLateSubmissions,
+        showScoreboard: competition.showScoreboard
+      });
+    }
+    setIsEditing(true);
   };
 
   const formatDateTimeLocal = (dateString) => {
@@ -150,7 +146,7 @@ const CompetitionManager = () => {
           </div>
         </div>
         {!isEditing && (
-          <button onClick={() => setIsEditing(true)} className="btn-edit">
+          <button onClick={startEditing} className="btn-edit">
             <FaEdit /> Edit Settings
           </button>
         )}

@@ -688,7 +688,7 @@ function Admin() {
                       <td><span className="score-badge">{team.score}</span></td>
                       <td>{team.solvedChallenges.length}</td>
                       <td>{new Date(team.createdAt).toLocaleDateString()}</td>
-                      <td className="action-buttons">
+                      <td className="admin-action-buttons">
                         <button 
                           className="btn-icon" 
                           onClick={() => setSelectedTeam(team)}
@@ -755,7 +755,7 @@ function Admin() {
                         </span>
                       </td>
                       <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                      <td className="action-buttons">
+                      <td className="admin-action-buttons">
                         <button 
                           className="btn-icon" 
                           onClick={() => handleToggleBan(user._id, user.username, user.banned)}
@@ -1095,7 +1095,7 @@ function Admin() {
                         </div>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <div className="action-buttons">
+                        <div className="admin-action-buttons">
                           <button 
                             className="btn-icon" 
                             onClick={() => handleEditChallenge(ch)}
@@ -1300,7 +1300,7 @@ function Admin() {
                       </td>
                       <td>{admin.createdBy || 'System'}</td>
                       <td>{new Date(admin.createdAt).toLocaleDateString()}</td>
-                      <td className="action-buttons">
+                      <td className="admin-action-buttons">
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           {currentUserRole === 'super_admin' && (
                             <button 

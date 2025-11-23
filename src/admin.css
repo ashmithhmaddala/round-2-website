@@ -569,9 +569,11 @@ body {
 }
 
 /* Action Buttons */
-.action-buttons {
+.admin-action-buttons {
     display: flex;
     gap: 6px;
+    align-items: center;
+    flex-direction: row;
 }
 
 /* Team Detail Modal */

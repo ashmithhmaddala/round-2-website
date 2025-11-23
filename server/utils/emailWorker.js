@@ -2,12 +2,12 @@ import EmailQueue from '../models/EmailQueue.js';
 import path from 'path';
 
 let isProcessing = false;
-const BATCH_SIZE = 5; // Match maxConnections in nodemailer config
+const BATCH_SIZE = 3; // Reduced from 5 to be safer with Gmail limits
 
 export const startEmailWorker = (transporter, logoPath) => {
   console.log('📧 Email worker started');
   
-  // Check for emails every 500ms
+  // Check for emails every 1 second
   setInterval(async () => {
     if (isProcessing) return;
     isProcessing = true;
@@ -29,14 +29,19 @@ export const startEmailWorker = (transporter, logoPath) => {
       .limit(BATCH_SIZE);
 
       if (jobs.length > 0) {
-        await Promise.all(jobs.map(job => processJob(job, transporter, logoPath)));
+        // Process sequentially with a small delay to avoid "burst" detection
+        for (const job of jobs) {
+          await processJob(job, transporter, logoPath);
+          // Wait 200ms between emails to be gentle on the SMTP server
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
     } catch (error) {
       console.error('Email worker error:', error);
     } finally {
       isProcessing = false;
     }
-  }, 500); // 0.5 second interval
+  }, 1000); // 1 second interval
 };
 
 const processJob = async (job, transporter, logoPath) => {

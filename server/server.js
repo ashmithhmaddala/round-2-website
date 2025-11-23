@@ -142,6 +142,9 @@ mongoose.connect(process.env.MONGODB_URI)
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
   service: 'gmail',
+  pool: true, // Use connection pooling for better performance
+  maxConnections: 5,
+  maxMessages: 100,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -324,7 +327,8 @@ app.post('/api/auth/signup', async (req, res) => {
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
     
-    await transporter.sendMail({
+    // Send email in background to avoid blocking response
+    transporter.sendMail({
       from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Verify Your Account - Cache Me If You Can',
@@ -351,7 +355,7 @@ app.post('/api/auth/signup', async (req, res) => {
         path: logoPath,
         cid: 'logo'
       }]
-    });
+    }).catch(err => console.error('Error sending verification email:', err));
 
     res.json({
       success: true,
@@ -495,8 +499,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
     await user.save();
 
-    // Send email
-    await transporter.sendMail({
+    // Send email in background
+    transporter.sendMail({
       from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Password Reset - Cache Me If You Can',
@@ -525,7 +529,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         path: logoPath,
         cid: 'logo'
       }]
-    });
+    }).catch(err => console.error('Error sending password reset email:', err));
 
     res.json({ success: true, message: 'Password reset email sent successfully!' });
   } catch (error) {
@@ -601,14 +605,7 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
     admin.resetPasswordToken = tokenHash;
     admin.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await admin.save();
-    // Send email
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    // Send email in background
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&admin=true`;
     const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
     
@@ -640,7 +637,7 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
         cid: 'logo'
       }]
     };
-    await transporter.sendMail(mailOptions);
+    transporter.sendMail(mailOptions).catch(err => console.error('Error sending admin password reset email:', err));
     
     await logAction('FORGOT_PASSWORD_REQUEST', admin.username, 'admin', 'Admin requested password reset', req);
 

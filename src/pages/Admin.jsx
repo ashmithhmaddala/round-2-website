@@ -1214,8 +1214,8 @@ function Admin() {
                   
                   <div className="form-field">
                     <label>Password</label>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ position: 'relative', flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', flex: '1 1 auto', minWidth: '0' }}>
                         <input 
                           type={showPassword ? "text" : "password"}
                           value={adminFormData.password} 
@@ -1254,7 +1254,7 @@ function Admin() {
                           showMessage('Secure password generated! Make sure to save it.', 'success');
                         }}
                         className="btn btn-secondary"
-                        style={{ whiteSpace: 'nowrap', padding: '10px 16px' }}
+                        style={{ whiteSpace: 'nowrap', padding: '8px 12px', fontSize: '0.9rem', flex: '0 0 auto' }}
                       >
                         Generate
                       </button>
@@ -1533,8 +1533,8 @@ function Admin() {
               
               <div className="form-field">
                 <label>New Password</label>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ position: 'relative', flex: '1 1 auto', minWidth: '0' }}>
                     <input 
                       type={showNewPassword ? "text" : "password"}
                       value={passwordFormData.newPassword} 
@@ -1567,7 +1567,7 @@ function Admin() {
                     type="button"
                     onClick={generatePasswordForModal}
                     className="btn btn-secondary"
-                    style={{ whiteSpace: 'nowrap', padding: '10px 16px' }}
+                    style={{ whiteSpace: 'nowrap', padding: '8px 12px', fontSize: '0.9rem', flex: '0 0 auto' }}
                   >
                     Generate
                   </button>

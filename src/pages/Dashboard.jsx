@@ -26,21 +26,11 @@ function Dashboard() {
   useEffect(() => {
     const username = getCurrentUser()
     if (!username) {
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
     setCurrentUser(username)
     checkTeamStatus(username)
-
-    // Periodically check if session is still valid (every 60 seconds)
-    const sessionCheckInterval = setInterval(() => {
-      const stillValid = getCurrentUser()
-      if (!stillValid) {
-        navigate('/')
-      }
-    }, 60000) // Check every minute
-
-    return () => clearInterval(sessionCheckInterval)
   }, [navigate])
 
   // Fetch competition data
@@ -257,10 +247,6 @@ function Dashboard() {
 
   if (!currentUser) {
     return <div>Loading...</div>
-  }
-  if (hasTeam && !teamData) {
-    return <div>Loading team data...</div>
-    navigate('/')
   }
 
   return (

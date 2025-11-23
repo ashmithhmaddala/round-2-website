@@ -31,7 +31,7 @@ function Login() {
       await login(loginData.username, loginData.password)
       setCurrentUser(loginData.username)
       showMessage('Login successful! Redirecting...', 'success')
-      setTimeout(() => navigate('/dashboard'), 1000)
+      setTimeout(() => navigate('/dashboard', { replace: true }), 1000)
     } catch (error) {
       showMessage(error.message || 'Login failed', 'error')
     } finally {

@@ -57,7 +57,7 @@ function Admin() {
   useEffect(() => {
     const auth = getAdminAuth()
     if (!auth) {
-      navigate('/admin-login')
+      navigate('/admin-login', { replace: true })
       return
     }
     loadData()

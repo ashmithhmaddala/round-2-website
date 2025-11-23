@@ -29,7 +29,7 @@ function Challenges() {
     const loadData = async () => {
       const username = getCurrentUser()
       if (!username) {
-        navigate('/')
+        navigate('/', { replace: true })
         return
       }
 
@@ -37,7 +37,7 @@ function Challenges() {
         const user = await getUser(username)
         if (!user || !user.teamId) {
           alert('You must join a team first!')
-          navigate('/dashboard')
+          navigate('/dashboard', { replace: true })
           return
         }
 
@@ -50,18 +50,10 @@ function Challenges() {
         setChallenges(challengesData)
       } catch (error) {
         console.error('Error loading data:', error)
-        navigate('/dashboard')
+        navigate('/dashboard', { replace: true })
       }
     }
     loadData()
-
-    // Periodically check if session is still valid (every 60 seconds)
-    const sessionCheckInterval = setInterval(() => {
-      const stillValid = getCurrentUser()
-      if (!stillValid) {
-        navigate('/')
-      }
-    }, 60000) // Check every minute
 
     // Poll for challenge updates every 5 seconds
     const challengesInterval = setInterval(async () => {

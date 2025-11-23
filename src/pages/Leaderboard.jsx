@@ -24,7 +24,7 @@ function Leaderboard() {
   useEffect(() => {
     const username = getCurrentUser()
     if (!username) {
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
     setCurrentUser(username)

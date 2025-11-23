@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaLock, FaUser, FaCrown } from 'react-icons/fa'
-import { adminLogin, setAdminAuth } from '../utils/api'
+import { adminLogin, setAdminAuth, isAdminAuthenticated } from '../utils/api'
 import logo from '../assets/cseh_final_logo.png'
 
 function AdminLogin() {
@@ -10,6 +10,13 @@ function AdminLogin() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (isAdminAuthenticated()) {
+      navigate('/admin', { replace: true })
+    }
+  }, [navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaLock, FaGlobe, FaCode } from 'react-icons/fa'
-import { signup, login, setCurrentUser } from '../utils/api'
+import { signup, login, setCurrentUser, getCurrentUser } from '../utils/api'
 import logo from '../assets/cseh_final_logo.png'
 
 function Login() {
@@ -17,6 +17,14 @@ function Login() {
     password: '',
     confirmPassword: ''
   })
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const username = getCurrentUser()
+    if (username) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [navigate])
 
   const showMessage = (text, type) => {
     setMessage({ text, type })

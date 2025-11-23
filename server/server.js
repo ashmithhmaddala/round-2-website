@@ -921,6 +921,10 @@ app.post('/api/challenges/submit', async (req, res) => {
       });
     }
 
+    if (!flag) {
+      return res.status(400).json({ error: 'Flag is required' });
+    }
+
     // Check flag using bcrypt
     const isFlagValid = await bcrypt.compare(flag, challenge.flagHash);
     if (!isFlagValid) {
@@ -997,6 +1001,19 @@ app.post('/api/challenges/submit', async (req, res) => {
 app.post('/api/challenges', async (req, res) => {
   try {
     const { flag, ...rest } = req.body;
+    
+    if (!flag) {
+      return res.status(400).json({ error: 'Flag is required' });
+    }
+
+    // Check for other required fields
+    const requiredFields = ['id', 'title', 'description', 'category', 'difficulty', 'points'];
+    for (const field of requiredFields) {
+      if (!rest[field]) {
+        return res.status(400).json({ error: `${field} is required` });
+      }
+    }
+
     const flagHash = await bcrypt.hash(flag, 12);
     const challenge = new Challenge({ ...rest, flagHash });
     await challenge.save();
@@ -1005,6 +1022,8 @@ app.post('/api/challenges', async (req, res) => {
     
     res.json({ success: true, challenge });
   } catch (error) {
+    console.error('Create challenge error:', error);
+    await logAction('ERROR', 'system', 'system', `Create challenge error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1023,10 +1042,16 @@ app.put('/api/challenges/:id', async (req, res) => {
       { new: true }
     );
     
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
     await logAction('UPDATE_CHALLENGE', 'admin', 'admin', `Updated challenge: ${challenge.title} (${challenge.id})`, req);
     
     res.json({ success: true, challenge });
   } catch (error) {
+    console.error('Update challenge error:', error);
+    await logAction('ERROR', 'system', 'system', `Update challenge error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
 });

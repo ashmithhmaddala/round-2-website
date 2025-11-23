@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../utils/api';
+import { FaClock, FaPlay, FaPause, FaStop, FaSnowflake, FaEdit, FaSave, FaTimes, FaCalendarAlt, FaHistory } from 'react-icons/fa';
+import { LuTrophy } from "react-icons/lu";
 import '../admin.css';
 
 const CompetitionManager = () => {
@@ -19,6 +21,8 @@ const CompetitionManager = () => {
 
   useEffect(() => {
     fetchCompetition();
+    const interval = setInterval(fetchCompetition, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCompetition = async () => {
@@ -30,16 +34,18 @@ const CompetitionManager = () => {
       const data = await response.json();
       setCompetition(data);
       
-      // Populate form
-      setFormData({
-        name: data.name,
-        description: data.description,
-        startTime: formatDateTimeLocal(data.startTime),
-        endTime: formatDateTimeLocal(data.endTime),
-        freezeTime: data.freezeTime ? formatDateTimeLocal(data.freezeTime) : '',
-        allowLateSubmissions: data.allowLateSubmissions,
-        showScoreboard: data.showScoreboard
-      });
+      // Only update form data if not editing to avoid overwriting user input
+      if (!isEditing) {
+        setFormData({
+          name: data.name,
+          description: data.description,
+          startTime: formatDateTimeLocal(data.startTime),
+          endTime: formatDateTimeLocal(data.endTime),
+          freezeTime: data.freezeTime ? formatDateTimeLocal(data.freezeTime) : '',
+          allowLateSubmissions: data.allowLateSubmissions,
+          showScoreboard: data.showScoreboard
+        });
+      }
       
       setLoading(false);
     } catch (err) {
@@ -49,6 +55,7 @@ const CompetitionManager = () => {
   };
 
   const formatDateTimeLocal = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -85,14 +92,21 @@ const CompetitionManager = () => {
       const data = await response.json();
       setCompetition(data.competition);
       setIsEditing(false);
-      alert('Competition settings updated successfully!');
+      // Show success message (could be a toast)
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
   };
 
   const handleStatusChange = async (newStatus) => {
-    if (!confirm(`Are you sure you want to change the competition status to "${newStatus}"?`)) {
+    const confirmMessage = {
+      upcoming: 'Reset competition to UPCOMING? This will lock all challenges.',
+      live: 'START the competition? This will unlock challenges for all users.',
+      frozen: 'FREEZE the scoreboard? Submissions will still be accepted but scores will be hidden.',
+      ended: 'END the competition? No more submissions will be accepted.'
+    };
+
+    if (!confirm(confirmMessage[newStatus])) {
       return;
     }
 
@@ -112,378 +126,462 @@ const CompetitionManager = () => {
 
       const data = await response.json();
       setCompetition(data.competition);
-      alert(`Competition status changed to "${newStatus}"`);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
   };
 
-  if (loading) {
-    return <div style={{ padding: '20px', color: '#7f8c8d' }}>Loading...</div>;
-  }
-
-  if (error) {
-    return <div style={{ padding: '20px', color: '#e74c3c' }}>Error: {error}</div>;
-  }
+  if (loading) return <div className="loading-spinner">Loading...</div>;
+  if (error) return <div className="error-message">Error: {error}</div>;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ margin: 0, color: '#ecf0f1' }}>Competition Management</h2>
+    <div className="competition-manager">
+      <div className="manager-header">
+        <div className="header-title">
+          <LuTrophy className="header-icon" />
+          <div>
+            <h2>Competition Control Center</h2>
+            <p>Manage timeline, status, and global settings</p>
+          </div>
+        </div>
         {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            style={{
-              padding: '10px 20px',
-              background: '#3498db',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            }}
-          >
-            ✏️ Edit Settings
+          <button onClick={() => setIsEditing(true)} className="btn-edit">
+            <FaEdit /> Edit Settings
           </button>
         )}
       </div>
 
-      {/* Current Status */}
+      {/* Status Control Panel */}
       {!isEditing && competition && (
-        <div style={{
-          background: 'linear-gradient(135deg, #1a1f2e 0%, #252d3f 100%)',
-          borderRadius: '12px',
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <h3 style={{ marginTop: 0, color: '#ecf0f1', fontSize: '18px' }}>Current Status</h3>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Competition Name</div>
-              <div style={infoValueStyle}>{competition.name}</div>
-            </div>
-            
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Description</div>
-              <div style={infoValueStyle}>{competition.description}</div>
-            </div>
-            
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Current Status</div>
-              <div style={{
-                ...infoValueStyle,
-                color: getStatusColor(competition.status),
-                fontWeight: '600'
-              }}>
-                {competition.status.toUpperCase()}
-              </div>
+        <div className="control-panel">
+          <div className="status-display">
+            <div className="status-label">Current Status</div>
+            <div className={`status-badge ${competition.status}`}>
+              {competition.status === 'upcoming' && <FaClock />}
+              {competition.status === 'live' && <FaPlay />}
+              {competition.status === 'frozen' && <FaSnowflake />}
+              {competition.status === 'ended' && <FaStop />}
+              <span>{competition.status.toUpperCase()}</span>
             </div>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Start Time</div>
-              <div style={infoValueStyle}>{new Date(competition.startTime).toLocaleString()}</div>
-            </div>
-            
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>End Time</div>
-              <div style={infoValueStyle}>{new Date(competition.endTime).toLocaleString()}</div>
-            </div>
-            
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Freeze Time</div>
-              <div style={infoValueStyle}>
-                {competition.freezeTime ? new Date(competition.freezeTime).toLocaleString() : 'Not set'}
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '16px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Late Submissions</div>
-              <div style={infoValueStyle}>{competition.allowLateSubmissions ? '✅ Allowed' : '❌ Not Allowed'}</div>
-            </div>
-            
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>Scoreboard</div>
-              <div style={infoValueStyle}>{competition.showScoreboard ? '👁️ Visible' : '🙈 Hidden'}</div>
-            </div>
+          <div className="control-buttons">
+            <button
+              onClick={() => handleStatusChange('upcoming')}
+              className={`btn-control upcoming ${competition.status === 'upcoming' ? 'active' : ''}`}
+              disabled={competition.status === 'upcoming'}
+              title="Lock all challenges"
+            >
+              <FaHistory /> Reset / Upcoming
+            </button>
+            <button
+              onClick={() => handleStatusChange('live')}
+              className={`btn-control live ${competition.status === 'live' ? 'active' : ''}`}
+              disabled={competition.status === 'live'}
+              title="Unlock challenges"
+            >
+              <FaPlay /> Start Competition
+            </button>
+            <button
+              onClick={() => handleStatusChange('frozen')}
+              className={`btn-control frozen ${competition.status === 'frozen' ? 'active' : ''}`}
+              disabled={competition.status === 'frozen'}
+              title="Hide scoreboard updates"
+            >
+              <FaSnowflake /> Freeze Scoreboard
+            </button>
+            <button
+              onClick={() => handleStatusChange('ended')}
+              className={`btn-control ended ${competition.status === 'ended' ? 'active' : ''}`}
+              disabled={competition.status === 'ended'}
+              title="Stop submissions"
+            >
+              <FaStop /> End Competition
+            </button>
           </div>
         </div>
       )}
 
-      {/* Status Control Buttons */}
-      {!isEditing && (
-        <div style={{
-          background: 'linear-gradient(135deg, #1a1f2e 0%, #252d3f 100%)',
-          borderRadius: '12px',
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <h3 style={{ marginTop: 0, color: '#ecf0f1', fontSize: '18px', marginBottom: '16px' }}>
-            Manual Status Control
-          </h3>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => handleStatusChange('upcoming')}
-              style={statusButtonStyle('#3498db')}
-              disabled={competition?.status === 'upcoming'}
-            >
-              ⏳ Set Upcoming
-            </button>
-            <button
-              onClick={() => handleStatusChange('live')}
-              style={statusButtonStyle('#2ecc71')}
-              disabled={competition?.status === 'live'}
-            >
-              🔴 Start Competition
-            </button>
-            <button
-              onClick={() => handleStatusChange('frozen')}
-              style={statusButtonStyle('#f39c12')}
-              disabled={competition?.status === 'frozen'}
-            >
-              ❄️ Freeze Scoreboard
-            </button>
-            <button
-              onClick={() => handleStatusChange('ended')}
-              style={statusButtonStyle('#e74c3c')}
-              disabled={competition?.status === 'ended'}
-            >
-              🏁 End Competition
-            </button>
+      {/* Info Grid */}
+      {!isEditing && competition && (
+        <div className="info-grid">
+          <div className="info-card">
+            <div className="info-icon"><LuTrophy /></div>
+            <div className="info-content">
+              <label>Competition Name</label>
+              <div className="value">{competition.name}</div>
+            </div>
           </div>
-          <div style={{ 
-            marginTop: '12px', 
-            fontSize: '13px', 
-            color: '#95a5a6',
-            fontStyle: 'italic'
-          }}>
-            Note: Status will auto-update based on times, but you can manually override it here.
+          <div className="info-card">
+            <div className="info-icon"><FaCalendarAlt /></div>
+            <div className="info-content">
+              <label>Start Time</label>
+              <div className="value">{new Date(competition.startTime).toLocaleString()}</div>
+            </div>
+          </div>
+          <div className="info-card">
+            <div className="info-icon"><FaStop /></div>
+            <div className="info-content">
+              <label>End Time</label>
+              <div className="value">{new Date(competition.endTime).toLocaleString()}</div>
+            </div>
+          </div>
+          <div className="info-card">
+            <div className="info-icon"><FaSnowflake /></div>
+            <div className="info-content">
+              <label>Freeze Time</label>
+              <div className="value">
+                {competition.freezeTime ? new Date(competition.freezeTime).toLocaleString() : 'Not set'}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Edit Form */}
       {isEditing && (
-        <form onSubmit={handleSubmit} style={{
-          background: 'linear-gradient(135deg, #1a1f2e 0%, #252d3f 100%)',
-          borderRadius: '12px',
-          padding: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <h3 style={{ marginTop: 0, color: '#ecf0f1', fontSize: '18px' }}>Edit Competition Settings</h3>
-          
-          <div style={{ display: 'grid', gap: '16px' }}>
-            <div>
-              <label style={labelStyle}>Competition Name *</label>
+        <form onSubmit={handleSubmit} className="edit-form">
+          <div className="form-header">
+            <h3>Edit Configuration</h3>
+            <button type="button" onClick={() => setIsEditing(false)} className="btn-close">
+              <FaTimes />
+            </button>
+          </div>
+
+          <div className="form-group">
+            <label>Competition Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              rows="3"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start Time</label>
               <input
-                type="text"
-                name="name"
-                value={formData.name}
+                type="datetime-local"
+                name="startTime"
+                value={formData.startTime}
                 onChange={handleInputChange}
                 required
-                style={inputStyle}
               />
             </div>
-
-            <div>
-              <label style={labelStyle}>Description *</label>
-              <textarea
-                name="description"
-                value={formData.description}
+            <div className="form-group">
+              <label>End Time</label>
+              <input
+                type="datetime-local"
+                name="endTime"
+                value={formData.endTime}
                 onChange={handleInputChange}
                 required
-                rows="3"
-                style={inputStyle}
               />
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
-              <div>
-                <label style={labelStyle}>Start Time *</label>
-                <input
-                  type="datetime-local"
-                  name="startTime"
-                  value={formData.startTime}
-                  onChange={handleInputChange}
-                  required
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>End Time *</label>
-                <input
-                  type="datetime-local"
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleInputChange}
-                  required
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Freeze Time (Optional)</label>
-                <input
-                  type="datetime-local"
-                  name="freezeTime"
-                  value={formData.freezeTime}
-                  onChange={handleInputChange}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ecf0f1', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  name="allowLateSubmissions"
-                  checked={formData.allowLateSubmissions}
-                  onChange={handleInputChange}
-                  style={{ cursor: 'pointer' }}
-                />
-                Allow Late Submissions
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ecf0f1', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  name="showScoreboard"
-                  checked={formData.showScoreboard}
-                  onChange={handleInputChange}
-                  style={{ cursor: 'pointer' }}
-                />
-                Show Scoreboard
-              </label>
+            <div className="form-group">
+              <label>Freeze Time (Optional)</label>
+              <input
+                type="datetime-local"
+                name="freezeTime"
+                value={formData.freezeTime}
+                onChange={handleInputChange}
+              />
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button
-              type="submit"
-              style={{
-                padding: '12px 24px',
-                background: '#2ecc71',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-            >
-              💾 Save Changes
+          <div className="form-row checkboxes">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                name="allowLateSubmissions"
+                checked={formData.allowLateSubmissions}
+                onChange={handleInputChange}
+              />
+              Allow Late Submissions
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                name="showScoreboard"
+                checked={formData.showScoreboard}
+                onChange={handleInputChange}
+              />
+              Show Scoreboard Publicly
+            </label>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn-save">
+              <FaSave /> Save Changes
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditing(false);
-                fetchCompetition(); // Reset form
-              }}
-              style={{
-                padding: '12px 24px',
-                background: '#7f8c8d',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-            >
-              ✖️ Cancel
+            <button type="button" onClick={() => setIsEditing(false)} className="btn-cancel">
+              Cancel
             </button>
           </div>
         </form>
       )}
+
+      <style jsx>{`
+        .competition-manager {
+          padding: 20px;
+          color: var(--text-primary);
+        }
+        .manager-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 30px;
+        }
+        .header-title {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+        .header-icon {
+          font-size: 2.5rem;
+          color: var(--text);
+        }
+        .header-title h2 {
+          margin: 0;
+          font-size: 1.8rem;
+          color: var(--text-primary);
+        }
+        .header-title p {
+          margin: 5px 0 0;
+          color: var(--text-secondary);
+        }
+        .btn-edit {
+          background: transparent;
+          color: var(--text);
+          border: 1px solid var(--text-dim);
+          padding: 10px 20px;
+          border-radius: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          transition: background 0.2s;
+        }
+        .btn-edit:hover {
+          background: transparent;
+          border-color: var(--text);
+        }
+
+        .control-panel {
+          background: var(--bg-card);
+          padding: 25px;
+          border-radius: 12px;
+          margin-bottom: 30px;
+          border: 1px solid var(--border);
+        }
+        .status-display {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          margin-bottom: 25px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid var(--border);
+        }
+        .status-label {
+          font-size: 1.1rem;
+          color: var(--text-secondary);
+        }
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-weight: bold;
+          font-size: 1.1rem;
+        }
+        .status-badge.upcoming { background: transparent; color: var(--text); border: 1px solid var(--text-dim); }
+        .status-badge.live { background: transparent; color: var(--text); border: 1px solid var(--text-dim); }
+        .status-badge.frozen { background: transparent; color: var(--text); border: 1px solid var(--text-dim); }
+        .status-badge.ended { background: transparent; color: var(--text); border: 1px solid var(--text-dim); }
+
+        .control-buttons {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 15px;
+        }
+        .btn-control {
+          padding: 15px;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          font-weight: 600;
+          font-size: 1rem;
+          transition: all 0.2s;
+          opacity: 0.8;
+        }
+        .btn-control:hover:not(:disabled) {
+          opacity: 1;
+          transform: translateY(-2px);
+        }
+        .btn-control.active {
+          opacity: 1;
+          box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px currentColor;
+        }
+        .btn-control:disabled {
+          cursor: default;
+          opacity: 0.5;
+        }
+        .btn-control.upcoming { background: var(--bg-card); border-color: var(--text-dim); color: var(--text); }
+        .btn-control.upcoming:hover:not(:disabled), .btn-control.upcoming.active { background: transparent; color: var(--text); border-color: var(--text); }
+        
+        .btn-control.live { background: var(--bg-card); border-color: var(--text-dim); color: var(--text); }
+        .btn-control.live:hover:not(:disabled), .btn-control.live.active { background: transparent; color: var(--text); border-color: var(--text); }
+        
+        .btn-control.frozen { background: var(--bg-card); border-color: var(--text-dim); color: var(--text); }
+        .btn-control.frozen:hover:not(:disabled), .btn-control.frozen.active { background: transparent; color: var(--text); border-color: var(--text); }
+        
+        .btn-control.ended { background: var(--bg-card); border-color: var(--text-dim); color: var(--text); }
+        .btn-control.ended:hover:not(:disabled), .btn-control.ended.active { background: transparent; color: var(--text); border-color: var(--text); }
+
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 20px;
+        }
+        .info-card {
+          background: var(--bg-card);
+          padding: 20px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          border: 1px solid var(--border);
+        }
+        .info-icon {
+          font-size: 1.5rem;
+          color: var(--text);
+          background: transparent;
+          padding: 10px;
+          border-radius: 50%;
+          border: 1px solid var(--text-dim);
+        }
+        .info-content label {
+          display: block;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          margin-bottom: 5px;
+        }
+        .info-content .value {
+          font-size: 1.1rem;
+          font-weight: 500;
+          color: var(--text-primary);
+        }
+
+        .edit-form {
+          background: var(--bg-card);
+          padding: 30px;
+          border-radius: 12px;
+          border: 1px solid var(--border);
+        }
+        .form-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 25px;
+        }
+        .btn-close {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 1.2rem;
+          cursor: pointer;
+        }
+        .form-group {
+          margin-bottom: 20px;
+        }
+        .form-group label {
+          display: block;
+          margin-bottom: 8px;
+          color: var(--text-secondary);
+        }
+        .form-group input, .form-group textarea {
+          width: 100%;
+          padding: 10px;
+          background: var(--bg-dark);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--text-primary);
+          font-size: 1rem;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        .form-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+        }
+        .checkboxes {
+          margin: 20px 0;
+        }
+        .checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+          color: var(--text-primary);
+        }
+        .form-actions {
+          display: flex;
+          gap: 15px;
+          margin-top: 30px;
+        }
+        .btn-save {
+          background: transparent;
+          color: var(--text);
+          border: 1px solid var(--text-dim);
+          padding: 12px 24px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-save:hover {
+          background: transparent;
+          border-color: var(--text);
+        }
+        .btn-cancel {
+          background: var(--bg-dark);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
+          padding: 12px 24px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-cancel:hover {
+          background: var(--bg-card-hover);
+        }
+      `}</style>
     </div>
   );
-};
-
-// Styles
-const infoCardStyle = {
-  background: 'rgba(0, 0, 0, 0.2)',
-  padding: '16px',
-  borderRadius: '8px',
-  border: '1px solid rgba(255, 255, 255, 0.05)'
-};
-
-const infoLabelStyle = {
-  fontSize: '12px',
-  color: '#95a5a6',
-  marginBottom: '6px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px'
-};
-
-const infoValueStyle = {
-  fontSize: '14px',
-  color: '#ecf0f1',
-  fontWeight: '500'
-};
-
-const labelStyle = {
-  display: 'block',
-  marginBottom: '8px',
-  color: '#ecf0f1',
-  fontSize: '14px',
-  fontWeight: '500'
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '10px 12px',
-  background: 'rgba(0, 0, 0, 0.3)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  borderRadius: '6px',
-  color: '#ecf0f1',
-  fontSize: '14px',
-  boxSizing: 'border-box'
-};
-
-const statusButtonStyle = (color) => ({
-  padding: '10px 20px',
-  background: color,
-  color: '#fff',
-  border: 'none',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontWeight: '600',
-  fontSize: '14px',
-  transition: 'all 0.2s',
-  opacity: 1
-});
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'upcoming': return '#3498db';
-    case 'live': return '#2ecc71';
-    case 'frozen': return '#f39c12';
-    case 'ended': return '#e74c3c';
-    default: return '#95a5a6';
-  }
 };
 
 export default CompetitionManager;

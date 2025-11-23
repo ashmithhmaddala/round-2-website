@@ -1,4 +1,3 @@
-
 // API Base URL - uses environment variable for flexibility
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 console.log('API_URL configured as:', API_URL);
@@ -143,6 +142,35 @@ export const deleteChallenge = async (id) => {
   return data;
 };
 
+// Upload file to challenge
+export const uploadChallengeFile = async (challengeId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/challenges/${challengeId}/files`, {
+    method: 'POST',
+    body: formData // Don't set Content-Type header, browser will set it with boundary
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+// Delete file from challenge
+export const deleteChallengeFile = async (challengeId, filename) => {
+  const response = await fetch(`${API_URL}/challenges/${challengeId}/files/${filename}`, {
+    method: 'DELETE'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+// Get file download URL
+export const getChallengeFileUrl = (challengeId, filename) => {
+  return `${API_URL}/challenges/${challengeId}/files/${filename}`;
+};
+
 // ==================== ADMIN ====================
 
 export const adminLogin = async (username, password) => {
@@ -165,6 +193,31 @@ export const getAnalytics = async () => {
 
 export const getAllAdmins = async () => {
   const response = await fetch(`${API_URL}/admin/admins`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const getAllUsers = async () => {
+  const response = await fetch(`${API_URL}/admin/users`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const toggleUserBan = async (userId) => {
+  const response = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+    method: 'PATCH'
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
+export const deleteUser = async (userId) => {
+  const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+    method: 'DELETE'
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;

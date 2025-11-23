@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaLock, FaUser, FaCrown } from 'react-icons/fa'
 import { adminLogin, setAdminAuth } from '../utils/api'
+import logo from '../assets/cseh_final_logo.png'
 
 function AdminLogin() {
   const [username, setUsername] = useState('')
@@ -37,7 +38,7 @@ function AdminLogin() {
       <div className="admin-login-visual">
         <div className="admin-visual-content">
           <h1>
-            <FaCrown style={{ marginRight: '15px', display: 'inline-block', verticalAlign: 'middle', color: '#3b82f6' }} />
+            <img src={logo} alt="Logo" style={{ height: '60px', marginRight: '15px', display: 'inline-block', verticalAlign: 'middle' }} />
             Admin Portal
           </h1>
           <p className="admin-visual-subtitle">

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay } from 'react-icons/fa'
+import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay, FaUpload, FaDownload, FaTimes, FaFileAlt, FaInfoCircle, FaFileAudio, FaFileVideo, FaFileImage, FaFileCode, FaFileArchive, FaFilePdf, FaFile } from 'react-icons/fa'
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
-import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled } from '../utils/api'
+import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled, uploadChallengeFile, deleteChallengeFile, getChallengeFileUrl, getAllUsers, deleteUser, toggleUserBan } from '../utils/api'
+import logo from '../assets/cseh_final_logo.png'
 import RealTimeMonitoring from './RealTimeMonitoring'
 import AnnouncementsManager from './AnnouncementsManager'
 import CompetitionManager from './CompetitionManager'
@@ -16,6 +17,7 @@ function Admin() {
   const [teams, setTeams] = useState([])
   const [challenges, setChallenges] = useState([])
   const [admins, setAdmins] = useState([])
+  const [users, setUsers] = useState([])
   const [currentAdmin, setCurrentAdmin] = useState(null)
   const [message, setMessage] = useState({ text: '', type: '' })
   const [showForm, setShowForm] = useState(false)
@@ -47,6 +49,8 @@ function Admin() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const [uploadingFile, setUploadingFile] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -69,17 +73,42 @@ function Admin() {
     return () => clearInterval(interval)
   }, [autoRefresh])
 
+  const handleDeleteUser = async (userId, username) => {
+    if (!confirm(`Delete user "${username}"? This will remove them from their team.`)) return
+    try {
+      await deleteUser(userId)
+      await loadData()
+      showMessage('User deleted!', 'success')
+    } catch (error) {
+      showMessage('Failed to delete user: ' + error.message, 'error')
+    }
+  }
+
+  const handleToggleBan = async (userId, username, currentStatus) => {
+    const action = currentStatus ? 'unban' : 'ban'
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} user "${username}"?`)) return
+    try {
+      await toggleUserBan(userId)
+      await loadData()
+      showMessage(`User ${action}ned successfully!`, 'success')
+    } catch (error) {
+      showMessage(`Failed to ${action} user: ` + error.message, 'error')
+    }
+  }
+
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true)
-      const [teamsData, challengesData, adminsData] = await Promise.all([
+      const [teamsData, challengesData, adminsData, usersData] = await Promise.all([
         getAllTeams(),
         getChallenges(),
-        getAllAdmins()
+        getAllAdmins(),
+        getAllUsers()
       ])
       setTeams(teamsData)
       setChallenges(challengesData)
       setAdmins(adminsData)
+      setUsers(usersData)
       setLastUpdated(new Date())
     } catch (error) {
       if (!silent) showMessage('Failed to load data: ' + error.message, 'error')
@@ -174,6 +203,44 @@ function Admin() {
     }
   }
 
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files)
+    setSelectedFiles(files)
+  }
+
+  const handleFileUpload = async (challengeId) => {
+    if (selectedFiles.length === 0) {
+      showMessage('Please select files to upload', 'warning')
+      return
+    }
+
+    setUploadingFile(true)
+    try {
+      for (const file of selectedFiles) {
+        await uploadChallengeFile(challengeId, file)
+      }
+      showMessage(`${selectedFiles.length} file(s) uploaded successfully!`, 'success')
+      setSelectedFiles([])
+      await loadData()
+    } catch (error) {
+      showMessage('Failed to upload file: ' + error.message, 'error')
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleFileDelete = async (challengeId, filename) => {
+    if (!confirm(`Delete file "${filename}"?`)) return
+    
+    try {
+      await deleteChallengeFile(challengeId, filename)
+      showMessage('File deleted successfully!', 'success')
+      await loadData()
+    } catch (error) {
+      showMessage('Failed to delete file: ' + error.message, 'error')
+    }
+  }
+
   const handleToggleDisabled = async (challengeId) => {
     try {
       await toggleChallengeDisabled(challengeId)
@@ -183,6 +250,17 @@ function Admin() {
     } catch (error) {
       showMessage('Failed to toggle disabled status: ' + error.message, 'error')
     }
+  }
+
+  const getFileIcon = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase()
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return <FaFileImage />
+    if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) return <FaFileVideo />
+    if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return <FaFileAudio />
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <FaFileArchive />
+    if (['pdf'].includes(ext)) return <FaFilePdf />
+    if (['js', 'py', 'html', 'css', 'json', 'java', 'c', 'cpp'].includes(ext)) return <FaFileCode />
+    return <FaFileAlt />
   }
 
   const handleAddAdmin = () => {
@@ -297,46 +375,95 @@ function Admin() {
   })
 
   // Chart data
-  const scoresData = {
-    labels: teamArray.map(t => t.name),
-    datasets: [{ 
-      label: 'Score', 
-      data: teamArray.map(t => t.score), 
-      backgroundColor: 'rgba(74, 144, 226, 0.8)',
-      borderColor: 'rgba(74, 144, 226, 1)',
-      borderWidth: 2
-    }]
-  }
-
-  const solvedData = {
-    labels: teamArray.map(t => t.name),
+  // 1. Top 10 Teams (Score)
+  const sortedTeams = [...teamArray].sort((a, b) => b.score - a.score).slice(0, 10);
+  const topTeamsData = {
+    labels: sortedTeams.map(t => t.name),
     datasets: [{
-      label: 'Challenges Solved',
-      data: teamArray.map(t => t.solvedChallenges.length),
-      backgroundColor: [
-        'rgba(74, 144, 226, 0.8)',
-        'rgba(112, 0, 255, 0.8)',
-        'rgba(0, 255, 136, 0.8)',
-        'rgba(255, 170, 0, 0.8)',
-        'rgba(255, 107, 107, 0.8)',
-        'rgba(78, 205, 196, 0.8)'
-      ]
+      label: 'Score',
+      data: sortedTeams.map(t => t.score),
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      borderColor: 'rgba(255, 255, 255, 1)',
+      borderWidth: 1,
     }]
-  }
+  };
+
+  // 2. Challenge Solves (Top 10 Most Solved)
+  const sortedChallenges = [...challenges].sort((a, b) => (b.solvedBy?.length || 0) - (a.solvedBy?.length || 0)).slice(0, 10);
+  const challengeSolvesData = {
+    labels: sortedChallenges.map(c => c.title),
+    datasets: [{
+      label: 'Solves',
+      data: sortedChallenges.map(c => c.solvedBy?.length || 0),
+      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+      borderColor: 'rgba(255, 255, 255, 1)',
+      borderWidth: 1,
+    }]
+  };
+
+  // 3. Score Distribution
+  const scoreBuckets = { '0': 0, '1-500': 0, '501-1000': 0, '1000-2000': 0, '2000+': 0 };
+  teamArray.forEach(team => {
+      if (team.score === 0) scoreBuckets['0']++;
+      else if (team.score <= 500) scoreBuckets['1-500']++;
+      else if (team.score <= 1000) scoreBuckets['501-1000']++;
+      else if (team.score <= 2000) scoreBuckets['1000-2000']++;
+      else scoreBuckets['2000+']++;
+  });
+  
+  const distributionData = {
+      labels: Object.keys(scoreBuckets),
+      datasets: [{
+          label: 'Number of Teams',
+          data: Object.values(scoreBuckets),
+          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+          borderColor: 'rgba(255, 255, 255, 1)',
+          borderWidth: 1
+      }]
+  };
 
   const categoryData = {
     labels: ['OSINT', 'Cryptography'],
     datasets: [{
       data: [osintChallenges, cryptoChallenges],
-      backgroundColor: ['rgba(74, 144, 226, 0.8)', 'rgba(112, 0, 255, 0.8)']
+      backgroundColor: ['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.4)'],
+      borderColor: ['rgba(255, 255, 255, 1)', 'rgba(255, 255, 255, 1)'],
+      borderWidth: 1
     }]
-  }
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: '#e5e7eb' }
+      },
+      title: { display: false }
+    },
+    scales: {
+      y: {
+        ticks: { color: '#9ca3af' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      },
+      x: {
+        ticks: { color: '#9ca3af' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+      }
+    }
+  };
+
+  const horizontalChartOptions = {
+    ...chartOptions,
+    indexAxis: 'y',
+  };
 
   const navigationItems = [
     { name: 'Overview', icon: FaChartLine },
     { name: 'Real-Time', icon: FaBroadcastTower },
     { name: 'Competition', icon: FaClock },
     { name: 'Teams', icon: FaUsers },
+    { name: 'Users', icon: FaUsers },
     { name: 'Challenges', icon: FaPuzzlePiece },
     { name: 'Announcements', icon: FaBullhorn },
     { name: 'Analytics', icon: FaChartLine },
@@ -348,7 +475,7 @@ function Admin() {
       <nav className="admin-navbar">
         <div className="admin-nav-container">
           <div className="admin-brand">
-            <FaShieldAlt className="brand-icon" />
+            <img src={logo} alt="Logo" style={{ height: '40px', width: 'auto', marginRight: '10px' }} />
             <div className="brand-text">
               <h1>CTF Admin</h1>
               <span>Control Panel</span>
@@ -400,6 +527,7 @@ function Admin() {
                 {activeTab === 'realtime' && 'Live competition analytics and activity tracking'}
                 {activeTab === 'competition' && 'Manage competition timer and control settings'}
                 {activeTab === 'teams' && `${filteredTeams.length} teams registered`}
+                {activeTab === 'users' && `${users.length} users registered`}
                 {activeTab === 'challenges' && `${filteredChallenges.length} challenges available`}
                 {activeTab === 'announcements' && 'Broadcast messages to all participants'}
                 {activeTab === 'analytics' && 'Performance insights and statistics'}
@@ -419,7 +547,7 @@ function Admin() {
           <div className="admin-section active">
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #4a90e2, #357abd)' }}>
+                <div className="stat-icon">
                   <FaUsers />
                 </div>
                 <div className="stat-content">
@@ -428,7 +556,7 @@ function Admin() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #7000ff, #5a00cc)' }}>
+                <div className="stat-icon">
                   <FaUsers />
                 </div>
                 <div className="stat-content">
@@ -437,7 +565,7 @@ function Admin() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6e)' }}>
+                <div className="stat-icon">
                   <FaPuzzlePiece />
                 </div>
                 <div className="stat-content">
@@ -446,7 +574,7 @@ function Admin() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #ffaa00, #ff8800)' }}>
+                <div className="stat-icon">
                   <FaCheckCircle />
                 </div>
                 <div className="stat-content">
@@ -459,7 +587,7 @@ function Admin() {
             {topTeam && (
               <div className="featured-team">
                 <div className="featured-header">
-                  <FaTrophy style={{ color: '#ffaa00' }} />
+                  <FaTrophy />
                   <h3>Leading Team</h3>
                 </div>
                 <div className="featured-content">
@@ -485,20 +613,30 @@ function Admin() {
             <div className="overview-charts">
               <div className="chart-card">
                 <h3>Challenge Distribution</h3>
-                <Doughnut data={categoryData} options={{ responsive: true, maintainAspectRatio: true }} />
+                <div style={{ height: '250px', display: 'flex', justifyContent: 'center' }}>
+                  <Doughnut 
+                    data={categoryData} 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'right',
+                          labels: { color: '#e5e7eb' }
+                        }
+                      }
+                    }} 
+                  />
+                </div>
               </div>
               <div className="chart-card">
-                <h3>Team Scores Comparison</h3>
-                <Bar 
-                  data={scoresData} 
-                  options={{ 
-                    responsive: true, 
-                    maintainAspectRatio: true,
-                    plugins: {
-                      legend: { display: false }
-                    }
-                  }} 
-                />
+                <h3>Top Teams Overview</h3>
+                <div style={{ height: '250px' }}>
+                  <Bar 
+                    data={topTeamsData} 
+                    options={horizontalChartOptions} 
+                  />
+                </div>
               </div>
             </div>
 
@@ -559,10 +697,77 @@ function Admin() {
                           onClick={() => handleDeleteTeam(team.code)}
                           title="Delete Team"
                           style={{ 
-                            background: 'rgba(255, 71, 87, 0.1)', 
-                            border: '1px solid rgba(255, 71, 87, 0.3)',
-                            color: '#ff4757'
+                            background: 'transparent', 
+                            border: '1px solid var(--text-dim)',
+                            color: 'var(--text)'
                           }}
+                        >
+                          <FaTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="admin-section active">
+            <div className="section-header">
+              <div>
+                <h2>User Management</h2>
+                <p className="section-description">Manage individual users, monitor activity, and handle bans</p>
+              </div>
+            </div>
+            <div className="table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Team</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user._id}>
+                      <td><strong>{user.username}</strong></td>
+                      <td>
+                        {user.teamId ? (
+                          <span className="team-code">
+                            {teams.find(t => t.code === user.teamId)?.name || user.teamId}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#9ca3af' }}>No Team</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`difficulty-badge ${user.banned ? 'hard' : 'easy'}`}>
+                          {user.banned ? 'Banned' : 'Active'}
+                        </span>
+                      </td>
+                      <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                      <td className="action-buttons">
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => handleToggleBan(user._id, user.username, user.banned)}
+                          title={user.banned ? "Unban User" : "Ban User"}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--text-dim)',
+                            color: 'var(--text)'
+                          }}
+                        >
+                          {user.banned ? <FaCheckCircle /> : <FaBan />}
+                        </button>
+                        <button 
+                          className="btn-icon btn-danger" 
+                          onClick={() => handleDeleteUser(user._id, user.username)}
+                          title="Delete User"
                         >
                           <FaTrash />
                         </button>
@@ -684,6 +889,122 @@ function Admin() {
                     />
                   </div>
                   
+                  <div className="form-field">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <FaFileAlt />
+                      Challenge Files
+                    </label>
+                    {editingId ? (
+                      <div className="admin-file-upload-container">
+                        <div className="file-drop-zone">
+                          <input 
+                            type="file" 
+                            id="file-upload"
+                            onChange={handleFileSelect}
+                            multiple
+                            className="file-input-hidden"
+                          />
+                          <div className="drop-zone-content">
+                            <label htmlFor="file-upload" className="btn-choose-files">
+                              <FaUpload />
+                              Choose Files
+                            </label>
+                            {selectedFiles.length > 0 && (
+                              <button 
+                                type="button"
+                                onClick={() => handleFileUpload(editingId)}
+                                disabled={uploadingFile}
+                                className={`btn-upload-files ${uploadingFile ? 'uploading' : ''}`}
+                              >
+                                <FaUpload />
+                                {uploadingFile ? 'Uploading...' : `Upload ${selectedFiles.length} file(s)`}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {selectedFiles.length > 0 && (
+                          <div className="file-list-section">
+                            <div className="file-list-header">
+                              <FaFileAlt />
+                              Selected Files ({selectedFiles.length})
+                            </div>
+                            <div className="file-list">
+                              {selectedFiles.map((file, idx) => (
+                                <div key={idx} className="file-list-item pending">
+                                  <div className="file-type-icon">{getFileIcon(file.name)}</div>
+                                  <span className="file-name">{file.name}</span>
+                                  <span className="file-size">
+                                    {(file.size / 1024).toFixed(2)} KB
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {challenges.find(c => c.id === editingId)?.files?.length > 0 && (
+                          <div className="file-list-section">
+                            <div className="file-list-header">
+                              <FaFileAlt />
+                              Uploaded Files ({challenges.find(c => c.id === editingId).files.length})
+                            </div>
+                            <div className="file-list">
+                              {challenges.find(c => c.id === editingId).files.map((file, idx) => (
+                                <div key={idx} className="file-list-item uploaded">
+                                  <div className="file-info-wrapper">
+                                    <div className="file-icon-wrapper">
+                                      {getFileIcon(file.originalName)}
+                                    </div>
+                                    <div className="file-text-info">
+                                      <div className="file-name">{file.originalName}</div>
+                                      <div className="file-size">
+                                        {file.size >= 1024 * 1024 
+                                          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                                          : `${(file.size / 1024).toFixed(2)} KB`
+                                        }
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="file-actions">
+                                    <a
+                                      href={getChallengeFileUrl(editingId, file.filename)}
+                                      download={file.originalName}
+                                      className="btn-file-action download"
+                                      title="Download"
+                                    >
+                                      <FaDownload />
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFileDelete(editingId, file.filename)}
+                                      className="btn-file-action delete"
+                                      title="Delete"
+                                    >
+                                      <FaTimes />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {!challenges.find(c => c.id === editingId)?.files?.length && !selectedFiles.length && (
+                          <div className="empty-files-state">
+                            <FaFileAlt />
+                            <p>No files uploaded yet. Choose files to get started.</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="file-upload-placeholder">
+                        <FaInfoCircle />
+                        File uploads are available after creating the challenge. Create the challenge first, then click "Edit" to add files.
+                      </div>
+                    )}
+                  </div>
+                  
                   <div className="form-actions">
                     <button type="submit" className="btn btn-primary" disabled={loading}>
                       {loading ? 'Saving...' : (editingId ? 'Update Challenge' : 'Create Challenge')}
@@ -734,7 +1055,7 @@ function Admin() {
                       <td>
                         {ch.firstBlood?.teamName ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
-                            <FaTrophy style={{ color: '#fbbf24' }} />
+                            <FaTrophy />
                             <span>{ch.firstBlood.teamName}</span>
                           </div>
                         ) : (
@@ -748,9 +1069,9 @@ function Admin() {
                             className="btn-icon"
                             title={ch.visible ? 'Hide Challenge' : 'Show Challenge'}
                             style={{
-                              background: ch.visible ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                              border: ch.visible ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                              color: ch.visible ? '#10b981' : '#ef4444'
+                              background: 'transparent',
+                              border: '1px solid var(--text-dim)',
+                              color: 'var(--text)'
                             }}
                           >
                             {ch.visible ? <FaEye /> : <FaEyeSlash />}
@@ -760,9 +1081,9 @@ function Admin() {
                             className="btn-icon"
                             title={ch.disabled ? 'Enable Challenge' : 'Disable Challenge'}
                             style={{
-                              background: ch.disabled ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                              border: ch.disabled ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                              color: ch.disabled ? '#ef4444' : '#10b981'
+                              background: 'transparent',
+                              border: '1px solid var(--text-dim)',
+                              color: 'var(--text)'
                             }}
                           >
                             {ch.disabled ? <FaBan /> : <FaPlay />}
@@ -805,9 +1126,37 @@ function Admin() {
         {activeTab === 'analytics' && (
           <div className="admin-section active">
             <div className="section-header"><h2>Analytics & Statistics</h2></div>
-            <div className="analytics-grid">
-              <div className="chart-card"><h3>Team Scores</h3><Bar data={scoresData} options={{ responsive: true, maintainAspectRatio: true }} /></div>
-              <div className="chart-card"><h3>Challenges Solved</h3><Doughnut data={solvedData} options={{ responsive: true, maintainAspectRatio: true }} /></div>
+            <div className="analytics-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+              <div className="chart-card" style={{ height: '400px' }}>
+                <h3>Top 10 Teams (Score)</h3>
+                <Bar data={topTeamsData} options={horizontalChartOptions} />
+              </div>
+              <div className="chart-card" style={{ height: '400px' }}>
+                <h3>Score Distribution</h3>
+                <Bar data={distributionData} options={chartOptions} />
+              </div>
+              <div className="chart-card" style={{ height: '400px' }}>
+                <h3>Most Solved Challenges</h3>
+                <Bar data={challengeSolvesData} options={chartOptions} />
+              </div>
+              <div className="chart-card" style={{ height: '400px' }}>
+                <h3>Challenge Categories</h3>
+                <div style={{ height: '300px', display: 'flex', justifyContent: 'center' }}>
+                  <Doughnut 
+                    data={categoryData} 
+                    options={{
+                      ...chartOptions,
+                      scales: {}, // Remove scales for Doughnut
+                      plugins: {
+                        legend: {
+                          position: 'right',
+                          labels: { color: '#e5e7eb' }
+                        }
+                      }
+                    }} 
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -955,9 +1304,9 @@ function Admin() {
                               onClick={() => openResetPasswordModal(admin)}
                               title="Reset Password"
                               style={{
-                                background: 'rgba(74, 144, 226, 0.1)',
-                                border: '1px solid rgba(74, 144, 226, 0.3)',
-                                color: '#4a90e2'
+                                background: 'transparent',
+                                border: '1px solid var(--text-dim)',
+                                color: 'var(--text)'
                               }}
                             >
                               <FaShieldAlt />
@@ -1102,7 +1451,7 @@ function Admin() {
                     const team = teams.find(t => t.code === teamCode)
                     return team ? (
                       <div key={idx} className="solved-by-item">
-                        <FaTrophy style={{ color: '#fbbf24' }} />
+                        <FaTrophy />
                         <span>{team.name}</span>
                         <span className="team-code-small">{team.code}</span>
                       </div>

@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { API_URL } from '../utils/api';
+import logo from '../assets/cseh_final_logo.png';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -41,98 +41,51 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="reset-password-container">
-      <div className="reset-password-box">
-        <h1>Reset Password</h1>
-        <form onSubmit={handleSubmit} className="reset-password-form">
-          <label htmlFor="new-password">New Password</label>
-          <input
-            id="new-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="Enter new password"
-          />
-          <label htmlFor="confirm-password">Confirm Password</label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            placeholder="Confirm new password"
-          />
-          <button type="submit" disabled={loading}>
+    <div className="login-page">
+      <div className="auth-box-modern" style={{ margin: '0 auto', maxWidth: '400px', padding: '40px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img src={logo} alt="Logo" style={{ height: '60px' }} />
+        </div>
+        <div className="auth-header" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h2>Reset Password</h2>
+          <p>Enter your new password below</p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modern-input-group">
+            <input
+              id="new-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder=" "
+            />
+            <label htmlFor="new-password">New Password</label>
+          </div>
+          <div className="modern-input-group">
+            <input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              placeholder=" "
+            />
+            <label htmlFor="confirm-password">Confirm Password</label>
+          </div>
+          <button type="submit" className="btn-modern" disabled={loading}>
             {loading ? 'Resetting...' : 'Reset Password'}
           </button>
         </form>
-        {message && <div className="reset-password-message">{message}</div>}
+        {message && (
+          <div className={`message ${message.toLowerCase().includes('success') ? 'success' : 'error'}`} style={{ display: 'block', marginTop: '1.5rem' }}>
+            {message}
+          </div>
+        )}
+        <div className="auth-footer">
+          <a href="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Back to Login</a>
+        </div>
       </div>
-      <style>{`
-        .reset-password-container {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle at 20% 20%, #1e293b 60%, #0f172a 100%);
-        }
-        .reset-password-box {
-          background: rgba(30, 41, 59, 0.95);
-          padding: 2.5rem 2rem 2rem 2rem;
-          border-radius: 16px;
-          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-          max-width: 400px;
-          width: 100%;
-          color: #fff;
-        }
-        .reset-password-box h1 {
-          margin-bottom: 0.5rem;
-          font-size: 2rem;
-          font-weight: bold;
-          text-align: center;
-        }
-        .reset-password-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .reset-password-form label {
-          font-size: 1rem;
-          margin-bottom: 0.25rem;
-        }
-        .reset-password-form input {
-          padding: 0.75rem 1rem;
-          border-radius: 8px;
-          border: none;
-          font-size: 1rem;
-          background: #334155;
-          color: #fff;
-        }
-        .reset-password-form input:focus {
-          outline: 2px solid #60a5fa;
-        }
-        .reset-password-form button {
-          padding: 0.75rem 1rem;
-          border-radius: 8px;
-          border: none;
-          background: #3b82f6;
-          color: #fff;
-          font-size: 1rem;
-          font-weight: bold;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .reset-password-form button:hover {
-          background: #2563eb;
-        }
-        .reset-password-message {
-          margin-top: 1rem;
-          text-align: center;
-          color: #38bdf8;
-          font-weight: 500;
-        }
-      `}</style>
     </div>
   );
 };

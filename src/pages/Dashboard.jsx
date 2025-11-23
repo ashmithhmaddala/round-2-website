@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket, FaSignOutAlt, FaTrophy, FaChartLine, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell } from 'react-icons/fa'
+import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket, FaSignOutAlt, FaTrophy, FaChartLine, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell, FaMedal } from 'react-icons/fa'
 import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam, API_URL } from '../utils/api'
+import logo from '../assets/cseh_final_logo.png'
 import './Dashboard.css'
 
 function Dashboard() {
@@ -259,7 +260,7 @@ function Dashboard() {
         <div className="nav-content">
           <div className="nav-brand">
             <div className="brand-icon">
-              <FaShieldAlt />
+              <img src={logo} alt="Logo" style={{ height: '100%', width: 'auto' }} />
             </div>
             <div className="brand-text">
               <h1>Cache Me If You Can</h1>
@@ -282,6 +283,13 @@ function Dashboard() {
             )}
           </div>
           <div className="nav-actions">
+            <button 
+              onClick={() => navigate('/leaderboard')} 
+              className="btn-dashboard"
+              title="View Leaderboard"
+            >
+              <FaMedal />
+            </button>
             <button 
               onClick={toggleNotificationPanel} 
               className="btn-notifications"
@@ -405,6 +413,19 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
+                <div className="banner-right">
+                  <div className="team-score-display">
+                    <div className="score-item">
+                      <span className="score-label">Score</span>
+                      <span className="score-value">{teamData.score}</span>
+                    </div>
+                    <div className="score-divider"></div>
+                    <div className="score-item">
+                      <span className="score-label">Solved</span>
+                      <span className="score-value">{teamData.solvedChallenges.length}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Team Grid */}
@@ -441,39 +462,14 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
-
-                {/* Stats Card */}
-                <div className="team-card stats-card">
-                  <div className="stat-item">
-                    <div className="stat-icon trophy">
-                      <FaTrophy />
-                    </div>
-                    <div className="stat-info">
-                      <span className="stat-label">Challenges Solved</span>
-                      <span className="stat-value">{teamData.solvedChallenges.length}</span>
-                    </div>
-                  </div>
-                  <div className="stat-divider"></div>
-                  <div className="stat-item">
-                    <div className="stat-icon score">
-                      <FaChartLine />
-                    </div>
-                    <div className="stat-info">
-                      <span className="stat-label">Total Score</span>
-                      <span className="stat-value">{teamData.score}</span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Action Buttons */}
               <div className="action-buttons">
                 <button onClick={() => navigate('/challenges')} className="btn-primary-action">
-                  <FaRocket />
                   <span>Start Challenges</span>
                 </button>
                 <button onClick={handleLeaveTeam} className="btn-danger-action">
-                  <FaSignOutAlt />
                   <span>Leave Team</span>
                 </button>
               </div>

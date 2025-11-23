@@ -6,21 +6,45 @@
 }
 
 :root {
-    --primary-color: #3b82f6;
-    --secondary-color: #8b5cf6;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --bg-dark: #0f172a;
-    --bg-card: #1e293b;
-    --bg-card-hover: #334155;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --border-color: #334155;
-    --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-    --gradient-success: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+    --primary-color: #0066ff;
+    --secondary-color: #666666;
+    --success-color: #00c853;
+    --danger-color: #ff1744;
+    --warning-color: #ffab00;
+    --bg-dark: #000000;
+    --bg-card: #0a0a0a;
+    --bg-card-hover: #141414;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --border-color: #1a1a1a;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --gradient-primary: #0066ff;
+    --gradient-success: #00c853;
+    --gradient-danger: #ff1744;
+
+    /* Aliases for Dashboard/Leaderboard */
+    --bg: var(--bg-dark);
+    --surface: var(--bg-card);
+    --elevated: #141414;
+    --text: var(--text-primary);
+    --text-dim: var(--text-secondary);
+    --text-subtle: #666666;
+    --border: var(--border-color);
+    --border-hover: #444444;
+    --accent: var(--primary-color);
+    --success: var(--success-color);
+    --warning: var(--warning-color);
+    --danger: var(--danger-color);
+    
+    /* Spacing & Radius */
+    --s1: 0.5rem;
+    --s2: 1rem;
+    --s3: 1.5rem;
+    --s4: 2rem;
+    --s6: 3rem;
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
 }
 
 body {
@@ -29,10 +53,6 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
-    background-image: 
-        radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-        linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
 }
 
 /* Font Awesome Icon Spacing */
@@ -75,10 +95,7 @@ button .fas, button .far {
 .logo-small {
     font-size: 1.2rem;
     font-weight: bold;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--primary-color);
 }
 
 .nav-links {
@@ -92,34 +109,33 @@ button .fas, button .far {
     color: var(--text-primary);
     font-weight: 500;
     padding: 8px 16px;
-    background: rgba(59, 130, 246, 0.1);
-    border-radius: 8px;
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: var(--bg-card);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
 }
 
 .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: 500;
 }
 
 .nav-link:hover {
     color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.1);
+    background: var(--bg-card-hover);
 }
 
 /* Auth Box */
 .auth-box {
     max-width: 480px;
     margin: 60px auto;
-    background: rgba(30, 41, 59, 0.8);
-    backdrop-filter: blur(20px);
-    border-radius: 24px;
+    background: var(--bg-card);
+    border-radius: 12px;
     padding: 48px;
-    box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
     animation: fadeInUp 0.6s ease-out;
 }
@@ -127,7 +143,7 @@ button .fas, button .far {
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
@@ -143,10 +159,7 @@ button .fas, button .far {
 .logo h1 {
     font-size: 2.2rem;
     font-weight: 700;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--primary-color);
     margin-bottom: 8px;
     letter-spacing: -0.5px;
     display: flex;
@@ -193,68 +206,49 @@ button .fas, button .far {
 
 .input-group input {
     width: 100%;
-    padding: 14px 18px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
+    padding: 12px 16px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     color: var(--text-primary);
     font-size: 1rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .input-group input:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(15, 23, 42, 0.9);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-    transform: translateY(-1px);
+    background: var(--bg-dark);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .input-group input::placeholder {
     color: var(--text-secondary);
-    opacity: 0.5;
+    opacity: 0.7;
 }
 
 /* Buttons */
 .btn {
-    padding: 12px 24px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     display: inline-block;
     text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
-}
-
-.btn:hover::before {
-    left: 100%;
 }
 
 .btn-primary {
-    background: var(--gradient-primary);
+    background: var(--primary-color);
     color: white;
     width: 100%;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+    background: #2563eb;
+    transform: translateY(-1px);
 }
 
 .btn-primary:active {
@@ -265,27 +259,29 @@ button .fas, button .far {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+    background: var(--bg-card-hover);
 }
 
 .btn-secondary {
-    background: var(--bg-card-hover);
+    background: var(--bg-card);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-    background: var(--border-color);
+    background: var(--bg-card-hover);
+    border-color: var(--text-secondary);
 }
 
 .btn-success {
-    background: var(--gradient-success);
+    background: var(--success-color);
     color: white;
     width: 100%;
 }
 
 .btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+    background: #059669;
+    transform: translateY(-1px);
 }
 
 .btn-danger {
@@ -294,26 +290,25 @@ button .fas, button .far {
 }
 
 .btn-danger:hover {
-    background: #cc2952;
+    background: #dc2626;
 }
 
 .btn-small {
-    padding: 10px 20px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
 .btn-small:disabled {
-    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-    opacity: 0.9;
+    background: var(--bg-card-hover);
+    opacity: 0.7;
     cursor: default;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    box-shadow: none;
 }
 
 .btn-small:disabled:hover {
     transform: none;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    box-shadow: none;
 }
 
 .toggle-form {
@@ -335,11 +330,14 @@ button .fas, button .far {
 
 /* Messages */
 .message {
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: 14px 18px;
+    border-radius: 10px;
     margin-top: 20px;
     display: none;
     animation: slideIn 0.3s;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: center;
 }
 
 @keyframes slideIn {
@@ -348,21 +346,21 @@ button .fas, button .far {
 }
 
 .message.success {
-    background: rgba(0, 255, 136, 0.1);
-    border: 1px solid var(--success-color);
-    color: var(--success-color);
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid #10b981;
+    color: #34d399;
 }
 
 .message.error {
-    background: rgba(255, 51, 102, 0.1);
-    border: 1px solid var(--danger-color);
-    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #f87171;
 }
 
 .message.info {
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid #3b82f6;
+    color: #60a5fa;
 }
 
 /* Dashboard Box */
@@ -393,37 +391,18 @@ button .fas, button .far {
 }
 
 .option-card {
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(10px);
-    border: 2px solid var(--border-color);
-    border-radius: 20px;
-    padding: 36px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 32px;
+    transition: all 0.2s ease;
     position: relative;
 }
 
-.option-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 20px;
-    padding: 2px;
-    background: var(--gradient-primary);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.4s;
-}
-
 .option-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
     border-color: var(--primary-color);
-}
-
-.option-card:hover::before {
-    opacity: 1;
 }
 
 .option-card h3 {
@@ -440,11 +419,11 @@ button .fas, button .far {
 
 .option-divider span {
     background: var(--bg-card);
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 50%;
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    font-weight: bold;
+    font-weight: 500;
 }
 
 /* Team Info */
@@ -454,20 +433,17 @@ button .fas, button .far {
 }
 
 .team-header {
-    background: var(--bg-dark);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 15px;
-    padding: 25px;
-    margin-bottom: 30px;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
 }
 
 .team-header h3 {
-    font-size: 1.8rem;
-    margin-bottom: 15px;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+    color: var(--text-primary);
 }
 
 .team-code-display {
@@ -478,16 +454,17 @@ button .fas, button .far {
 
 .team-code-display strong {
     color: var(--success-color);
-    font-size: 1.2rem;
-    letter-spacing: 2px;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    font-family: monospace;
 }
 
 .team-members {
-    background: var(--bg-dark);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 15px;
-    padding: 25px;
-    margin-bottom: 30px;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
 }
 
 .team-members h4 {
@@ -500,29 +477,29 @@ button .fas, button .far {
 }
 
 .team-members li {
-    padding: 10px;
+    padding: 12px;
     margin-bottom: 8px;
-    background: var(--bg-card);
-    border-radius: 8px;
+    background: var(--bg-dark);
+    border-radius: 6px;
     border: 1px solid var(--border-color);
 }
 
 .badge {
     display: inline-block;
-    padding: 4px 10px;
-    background: var(--gradient-primary);
+    padding: 4px 8px;
+    background: var(--primary-color);
     color: white;
-    border-radius: 12px;
+    border-radius: 4px;
     font-size: 0.75rem;
     margin-left: 10px;
 }
 
 .badge-self {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 4px 8px;
     background: var(--success-color);
-    color: var(--bg-dark);
-    border-radius: 12px;
+    color: white;
+    border-radius: 4px;
     font-size: 0.75rem;
     margin-left: 10px;
 }
@@ -536,54 +513,32 @@ button .fas, button .far {
 }
 
 .stat-card {
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(10px);
-    border: 2px solid var(--border-color);
-    border-radius: 18px;
-    padding: 32px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
     text-align: center;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: var(--gradient-success);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     border-color: var(--success-color);
-    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.2);
-}
-
-.stat-card:hover::before {
-    transform: scaleX(1);
+    box-shadow: var(--shadow);
 }
 
 .stat-label {
     display: block;
     color: var(--text-secondary);
     font-size: 0.9rem;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .stat-value {
     display: block;
-    font-size: 2.5rem;
-    font-weight: bold;
-    background: var(--gradient-success);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--success-color);
 }
 
 /* Action Buttons */
@@ -621,17 +576,17 @@ button .fas, button .far {
 .score-display {
     background: var(--bg-card);
     padding: 20px 30px;
-    border-radius: 16px;
-    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
     text-align: center;
     min-width: 180px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .score-display:hover {
     border-color: var(--success-color);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.2);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
 }
 
 .score-label {
@@ -644,7 +599,7 @@ button .fas, button .far {
 
 .score-display strong {
     color: var(--success-color);
-    font-size: 2.2rem;
+    font-size: 2rem;
     font-weight: 700;
     display: block;
 }
@@ -664,23 +619,23 @@ button .fas, button .far {
 
 .tab-btn {
     flex: 1;
-    padding: 15px 30px;
+    padding: 12px 24px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    border-radius: 12px;
-    font-size: 1.1rem;
+    border-radius: 6px;
+    font-size: 1rem;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
 }
 
 .tab-btn:hover {
     background: var(--bg-card-hover);
-    border-color: var(--primary-color);
+    border-color: var(--text-secondary);
 }
 
 .tab-btn.active {
-    background: var(--gradient-primary);
+    background: var(--primary-color);
     color: white;
     border-color: transparent;
 }
@@ -708,95 +663,49 @@ button .fas, button .far {
 }
 
 .challenge-card {
-    background: rgba(30, 41, 59, 0.7);
-    backdrop-filter: blur(15px);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 18px;
-    padding: 30px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow);
 }
 
 .challenge-card.solved {
-    padding: 34px 30px 30px 30px;
-}
-
-.challenge-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-    opacity: 0;
-    transition: opacity 0.4s;
-    z-index: 0;
+    padding: 24px;
+    border-color: var(--success-color);
+    background: rgba(16, 185, 129, 0.05);
 }
 
 .challenge-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 50px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     border-color: var(--primary-color);
 }
 
-.challenge-card:hover::before {
-    opacity: 1;
-}
-
-.challenge-card > * {
-    position: relative;
-    z-index: 1;
-}
-
-.challenge-card.solved {
-    border-color: var(--success-color);
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(30, 41, 59, 0.9) 100%);
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(16, 185, 129, 0.3);
-}
-
 .challenge-card.solved:hover {
-    transform: translateY(-6px) scale(1.01);
-    box-shadow: 0 15px 40px rgba(16, 185, 129, 0.4), 0 0 0 1px rgba(16, 185, 129, 0.4);
-}
-
-.challenge-card.solved::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--success-color), #34d399);
-    z-index: 3;
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
+    transform: translateY(-2px);
+    border-color: var(--success-color);
 }
 
 .challenge-card.solved::after {
-    content: '✓ SOLVED';
+    content: 'SOLVED';
     position: absolute;
-    top: 8px;
-    right: 24px;
-    padding: 5px 12px;
-    background: linear-gradient(135deg, var(--success-color), #34d399);
-    border-radius: 6px;
+    top: 12px;
+    right: 12px;
+    padding: 4px 8px;
+    background: var(--success-color);
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 0.7rem;
     font-weight: 700;
     color: white;
     z-index: 20;
-    letter-spacing: 0.8px;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-    animation: completedPulse 2s ease-in-out infinite;
-}
-
-@keyframes completedPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.85; }
+    letter-spacing: 0.5px;
 }
 
 .challenge-card.solved .challenge-header h3 {
@@ -808,9 +717,9 @@ button .fas, button .far {
 }
 
 .challenge-card.solved .points {
-    background: rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.1);
     color: var(--success-color);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .challenge-header {
@@ -821,57 +730,52 @@ button .fas, button .far {
     gap: 12px;
 }
 
-.challenge-card.solved .challenge-header {
-    padding-top: 20px;
-}
-
 .challenge-header h3 {
-    color: var(--primary-color);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    transition: color 0.3s ease;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition: color 0.2s ease;
     flex: 1;
-    max-width: calc(100% - 120px);
+    max-width: calc(100% - 100px);
     word-wrap: break-word;
 }
 
 .difficulty {
-    padding: 6px 14px;
-    border-radius: 8px;
+    padding: 4px 10px;
+    border-radius: 4px;
     font-size: 0.7rem;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: 1px solid;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     white-space: nowrap;
     flex-shrink: 0;
 }
 
 .difficulty.easy {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, 0.1);
     color: #10b981;
-    border-color: rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.2);
 }
 
 .difficulty.medium {
-    background: rgba(245, 158, 11, 0.15);
+    background: rgba(245, 158, 11, 0.1);
     color: #f59e0b;
-    border-color: rgba(245, 158, 11, 0.3);
+    border-color: rgba(245, 158, 11, 0.2);
 }
 
 .difficulty.hard {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.2);
 }
 
 .challenge-description {
     color: var(--text-secondary);
     margin-bottom: 20px;
     line-height: 1.6;
-    min-height: 72px;
+    min-height: 60px;
     font-size: 0.95rem;
 }
 
@@ -880,7 +784,7 @@ button .fas, button .far {
     justify-content: space-between;
     align-items: center;
     padding-top: 16px;
-    border-top: 1px solid rgba(51, 65, 85, 0.5);
+    border-top: 1px solid var(--border-color);
 }
 
 .challenge-meta {
@@ -890,22 +794,21 @@ button .fas, button .far {
 }
 
 .points {
-    font-weight: 700;
+    font-weight: 600;
     color: var(--warning-color);
-    font-size: 1rem;
-    padding: 6px 12px;
-    background: rgba(245, 158, 11, 0.15);
-    border-radius: 8px;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+    font-size: 0.9rem;
+    padding: 4px 10px;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .solve-count {
     font-size: 0.8rem;
     color: var(--text-secondary);
     padding: 4px 8px;
-    background: rgba(148, 163, 184, 0.1);
-    border-radius: 6px;
+    background: var(--bg-card-hover);
+    border-radius: 4px;
 }
 
 /* Empty Challenges State */
@@ -938,26 +841,25 @@ button .fas, button .far {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
 }
 
 .modal-content {
-    background: rgba(30, 41, 59, 0.95);
-    backdrop-filter: blur(20px);
+    background: var(--bg-card);
     margin: 10% auto;
-    padding: 48px;
-    border: 2px solid var(--border-color);
-    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     width: 90%;
     max-width: 600px;
     position: relative;
-    animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+    animation: slideDown 0.3s ease-out;
+    box-shadow: var(--shadow);
 }
 
 @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-50px); }
+    from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -966,14 +868,13 @@ button .fas, button .far {
     position: absolute;
     right: 20px;
     top: 20px;
-    font-size: 32px;
-    font-weight: bold;
+    font-size: 24px;
     cursor: pointer;
-    transition: color 0.3s;
+    transition: color 0.2s;
 }
 
 .close:hover {
-    color: var(--danger-color);
+    color: var(--text-primary);
 }
 
 .modal-header-section {
@@ -982,8 +883,8 @@ button .fas, button .far {
 
 .modal-content h2 {
     margin-bottom: 12px;
-    color: var(--primary-color);
-    font-size: 1.8rem;
+    color: var(--text-primary);
+    font-size: 1.5rem;
 }
 
 .modal-badges {
@@ -993,36 +894,35 @@ button .fas, button .far {
 }
 
 .modal-points {
-    padding: 6px 14px;
-    background: rgba(245, 158, 11, 0.15);
+    padding: 4px 10px;
+    background: rgba(245, 158, 11, 0.1);
     color: var(--warning-color);
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.9rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .modal-description {
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--bg-dark);
     padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 28px;
+    border-radius: 8px;
+    margin-bottom: 24px;
     border: 1px solid var(--border-color);
 }
 
 .modal-description h4 {
-    color: var(--text-primary);
-    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 12px;
-    color: var(--text-secondary);
 }
 
 .modal-description p {
     color: var(--text-primary);
     margin: 0;
-    line-height: 1.7;
-    font-size: 1rem;
+    line-height: 1.6;
+    font-size: 0.95rem;
 }
 
 .input-hint {
@@ -1030,7 +930,6 @@ button .fas, button .far {
     color: var(--text-secondary);
     font-size: 0.8rem;
     margin-top: 8px;
-    font-style: italic;
 }
 
 /* Modern Login Page Redesign */
@@ -1040,7 +939,7 @@ button .fas, button .far {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0f172a;
+    background: var(--bg-dark);
     overflow: hidden;
 }
 
@@ -1053,50 +952,34 @@ button .fas, button .far {
 /* Left Side - Visuals */
 .login-visual {
     flex: 1;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%),
-                url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center;
+    background: var(--bg-card);
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
     padding: 60px;
     overflow: hidden;
-}
-
-.login-visual::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.15), transparent 60%),
-                radial-gradient(circle at 70% 70%, rgba(139, 92, 246, 0.15), transparent 60%);
-    z-index: 1;
+    border-right: 1px solid var(--border-color);
 }
 
 .visual-content {
     position: relative;
     z-index: 2;
     max-width: 600px;
+    margin: 0 auto;
 }
 
 .visual-content h1 {
-    font-size: 3.5rem;
-    font-weight: 800;
+    font-size: 3rem;
+    font-weight: 700;
     line-height: 1.1;
     margin-bottom: 24px;
-    background: linear-gradient(to right, #fff, #94a3b8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--text-primary);
 }
 
 .visual-subtitle {
-    font-size: 1.25rem;
-    color: #94a3b8;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 40px;
     max-width: 480px;
@@ -1111,32 +994,31 @@ button .fas, button .far {
     display: flex;
     align-items: center;
     gap: 16px;
-    color: #e2e8f0;
+    color: var(--text-primary);
     font-weight: 500;
 }
 
 .feature-icon {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    background: var(--bg-dark);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
 }
 
 /* Right Side - Form */
 .login-form-section {
     flex: 0 0 500px;
-    background: #0f172a;
+    background: var(--bg-dark);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 40px;
     position: relative;
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .auth-box-modern {
@@ -1149,14 +1031,14 @@ button .fas, button .far {
 }
 
 .auth-header h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
     margin-bottom: 8px;
 }
 
 .auth-header p {
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .modern-input-group {
@@ -1166,57 +1048,57 @@ button .fas, button .far {
 
 .modern-input-group label {
     position: absolute;
-    left: 16px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: #64748b;
+    color: var(--text-secondary);
     pointer-events: none;
     transition: all 0.2s ease;
-    background: #0f172a;
+    background: var(--bg-dark);
     padding: 0 4px;
+    font-size: 0.95rem;
 }
 
 .modern-input-group input:focus ~ label,
 .modern-input-group input:not(:placeholder-shown) ~ label {
     top: 0;
-    font-size: 0.8rem;
-    color: #3b82f6;
+    font-size: 0.75rem;
+    color: var(--primary-color);
 }
 
 .modern-input-group input {
     width: 100%;
-    padding: 16px;
+    padding: 12px 16px;
     background: transparent;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    color: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
     font-size: 1rem;
     transition: all 0.2s;
 }
 
 .modern-input-group input:focus {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .btn-modern {
     width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    padding: 12px;
+    background: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 12px;
+    border-radius: 6px;
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s;
 }
 
 .btn-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    background: #2563eb;
+    transform: translateY(-1px);
 }
 
 .btn-modern:disabled {
@@ -1228,14 +1110,14 @@ button .fas, button .far {
 .auth-footer {
     margin-top: 32px;
     text-align: center;
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.9rem;
 }
 
 .auth-footer a {
-    color: #3b82f6;
+    color: var(--primary-color);
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 500;
     margin-left: 4px;
 }
 

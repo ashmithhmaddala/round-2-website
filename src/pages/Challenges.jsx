@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaShieldAlt, FaSearch, FaLock, FaUsers, FaBell, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSignOutAlt, FaHome } from 'react-icons/fa'
-import { getCurrentUser, logout, getUser, getTeam, getChallenges, submitFlag, API_URL } from '../utils/api'
+import { FaShieldAlt, FaSearch, FaLock, FaUsers, FaBell, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSignOutAlt, FaHome, FaMedal, FaDownload, FaFileAlt, FaFileAudio, FaFileVideo, FaFileImage, FaFileCode, FaFileArchive, FaFilePdf, FaCheck, FaStop } from 'react-icons/fa'
+import { getCurrentUser, logout, getUser, getTeam, getChallenges, submitFlag, API_URL, getChallengeFileUrl } from '../utils/api'
+import logo from '../assets/cseh_final_logo.png'
 import '../pages/Dashboard.css'
 import './Challenges.css'
 
@@ -22,6 +23,7 @@ function Challenges() {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
+  const prevStatusRef = useRef(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -61,8 +63,47 @@ function Challenges() {
       }
     }, 60000) // Check every minute
 
-    return () => clearInterval(sessionCheckInterval)
-  }, [navigate])
+    // Poll for challenge updates every 5 seconds
+    const challengesInterval = setInterval(async () => {
+      try {
+        const challengesData = await getChallenges()
+        setChallenges(challengesData)
+        
+        // Also update team data to check for new solves
+        if (currentUser && teamData) {
+          const updatedTeam = await getTeam(teamData.code)
+          setTeamData(updatedTeam)
+        }
+      } catch (error) {
+        console.error('Error polling challenges:', error)
+      }
+    }, 5000)
+
+    return () => {
+      clearInterval(sessionCheckInterval)
+      clearInterval(challengesInterval)
+    }
+  }, [navigate, currentUser, teamData?.code])
+
+  // Effect to handle modal state when challenge status changes
+  useEffect(() => {
+    if (modalOpen && currentChallenge) {
+      const updatedChallenge = challenges.find(c => c.id === currentChallenge.id)
+      
+      // If challenge was hidden or disabled while modal is open
+      if (updatedChallenge) {
+        if (updatedChallenge.visible === false) {
+          setModalOpen(false)
+          setCurrentChallenge(null)
+          showMessage('This challenge has been hidden by the admin.', 'warning')
+        } else if (updatedChallenge.disabled && !currentChallenge.disabled) {
+          // Update the current challenge in modal to reflect disabled state
+          setCurrentChallenge(updatedChallenge)
+          showMessage('This challenge has been disabled by the admin.', 'warning')
+        }
+      }
+    }
+  }, [challenges, modalOpen, currentChallenge])
 
   // Fetch competition data
   useEffect(() => {
@@ -98,7 +139,13 @@ function Challenges() {
     }
 
     const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft())
+      const newTimeLeft = calculateTimeLeft()
+      setTimeLeft(newTimeLeft)
+      
+      // Auto-refresh when competition starts (time reaches 0 and status was upcoming)
+      if (competition.status === 'upcoming' && !newTimeLeft) {
+        window.location.reload()
+      }
     }, 1000)
 
     setTimeLeft(calculateTimeLeft())
@@ -117,6 +164,13 @@ function Challenges() {
       const response = await fetch(`${API_URL}/competition`)
       if (response.ok) {
         const data = await response.json()
+        
+        // Auto-refresh when competition goes live
+        if (prevStatusRef.current === 'upcoming' && data.status === 'live') {
+          window.location.reload()
+        }
+        
+        prevStatusRef.current = data.status
         setCompetition(data)
       }
     } catch (err) {
@@ -195,12 +249,29 @@ function Challenges() {
     }
   }
 
+  const getFileIcon = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase()
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return <FaFileImage />
+    if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) return <FaFileVideo />
+    if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return <FaFileAudio />
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <FaFileArchive />
+    if (['pdf'].includes(ext)) return <FaFilePdf />
+    if (['js', 'py', 'html', 'css', 'json', 'java', 'c', 'cpp'].includes(ext)) return <FaFileCode />
+    return <FaFileAlt />
+  }
+
   const showMessage = (text, type) => {
     setMessage({ text, type })
     setTimeout(() => setMessage({ text: '', type: '' }), 3000)
   }
 
   const handleOpenChallenge = (challenge) => {
+    // Prevent opening if competition hasn't started
+    if (competition?.status === 'upcoming') {
+      showMessage('Competition has not started yet!', 'warning')
+      return
+    }
+    
     if (teamData.solvedChallenges.includes(challenge.id)) {
       showMessage('This challenge has already been solved by your team!', 'info')
       return
@@ -239,7 +310,7 @@ function Challenges() {
   }
 
   const getChallengesByCategory = (category) => {
-    return challenges.filter(ch => ch.category === category)
+    return challenges.filter(ch => ch.category === category && ch.visible !== false)
   }
 
   return (
@@ -248,7 +319,7 @@ function Challenges() {
         <div className="nav-content">
           <div className="nav-brand">
             <div className="brand-icon">
-              <FaShieldAlt />
+              <img src={logo} alt="Logo" style={{ height: '100%', width: 'auto' }} />
             </div>
             <div className="brand-text">
               <h1>Cache Me If You Can</h1>
@@ -279,6 +350,13 @@ function Challenges() {
               <FaHome />
             </button>
             <button 
+              onClick={() => navigate('/leaderboard')} 
+              className="btn-dashboard"
+              title="View Leaderboard"
+            >
+              <FaMedal />
+            </button>
+            <button 
               onClick={toggleNotificationPanel}
               className="btn-notifications"
               aria-label="View notifications"
@@ -302,17 +380,26 @@ function Challenges() {
 
       <main className="challenges-main">
         <div className="challenges-wrapper">
-          {/* Stats Bar */}
-          <div className="stats-bar">
-            <div className="stat-card">
-              <div className="stat-icon score-icon">
-                <FaShieldAlt />
-              </div>
-              <div className="stat-content">
-                <span className="stat-label">Team Score</span>
-                <span className="stat-value">{teamData?.score || 0}</span>
-              </div>
+          {competition?.status === 'ended' && (
+            <div className="status-banner ended" style={{ 
+              marginBottom: '1.5rem', 
+              padding: '1rem 1.5rem', 
+              background: 'transparent', 
+              border: '1px solid var(--text-dim)', 
+              borderRadius: '8px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '1rem', 
+              color: 'var(--text)' 
+            }}>
+              <FaStop style={{ fontSize: '1.25rem' }} />
+              <span style={{ fontWeight: '600' }}>The competition has ended. Challenges are now locked.</span>
             </div>
+          )}
+
+          {/* Score Display */}
+          <div className="score-display">
+            <span className="score-text">Score: <strong>{teamData?.score || 0}</strong></span>
           </div>
 
           {/* Category Selection */}
@@ -353,36 +440,62 @@ function Challenges() {
               </div>
             ) : (
             <div className="challenges-grid">
-            {getChallengesByCategory('osint').map((challenge) => (
+            {getChallengesByCategory('osint').map((challenge) => {
+              const isLocked = competition?.status === 'upcoming' || competition?.status === 'ended'
+              const isSolved = teamData?.solvedChallenges.includes(challenge.id)
+              const isDisabled = challenge.disabled
+              
+              return (
               <div
                 key={challenge.id}
-                className={`challenge-card ${teamData?.solvedChallenges.includes(challenge.id) ? 'solved' : ''}`}
+                className={`challenge-card ${isSolved ? 'solved' : ''} ${isLocked ? 'locked' : ''} ${isDisabled ? 'disabled-card' : ''}`}
+                style={isDisabled ? { opacity: 0.7, border: '1px solid var(--text-dim)' } : {}}
               >
                 <div className="challenge-header">
                   <h3>{challenge.title}</h3>
-                  <span className={`difficulty ${challenge.difficulty}`}>{challenge.difficulty}</span>
-                </div>
-                <p className="challenge-description">
-                  {challenge.description.substring(0, 120)}
-                  {challenge.description.length > 120 ? '...' : ''}
-                </p>
-                <div className="challenge-footer">
-                  <div className="challenge-meta">
-                    <span className="points">{challenge.points} pts</span>
-                    {challenge.solvedBy && challenge.solvedBy.length > 0 && (
-                      <span className="solve-count">{challenge.solvedBy.length} {challenge.solvedBy.length === 1 ? 'solve' : 'solves'}</span>
-                    )}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {isDisabled && <span className="difficulty" style={{ backgroundColor: 'transparent', color: 'var(--text)', border: '1px solid var(--text-dim)' }}>DISABLED</span>}
+                    <span className={`difficulty ${challenge.difficulty}`}>{challenge.difficulty}</span>
                   </div>
-                  <button
-                    onClick={() => handleOpenChallenge(challenge)}
-                    className="btn btn-small"
-                    disabled={teamData?.solvedChallenges.includes(challenge.id)}
-                  >
-                    {teamData?.solvedChallenges.includes(challenge.id) ? '✓ Completed' : 'Start Challenge'}
-                  </button>
                 </div>
+                
+                {isLocked ? (
+                  <div className="challenge-locked-content">
+                    <div className="lock-icon">
+                      <FaLock />
+                    </div>
+                    <p className="lock-message">
+                      {competition?.status === 'ended' 
+                        ? 'Competition has ended' 
+                        : 'Challenge details will be revealed when the competition starts'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="challenge-description">
+                      {challenge.description.substring(0, 120)}
+                      {challenge.description.length > 120 ? '...' : ''}
+                    </p>
+                    <div className="challenge-footer">
+                      <div className="challenge-meta">
+                        <span className="points">{challenge.points} pts</span>
+                        {challenge.solvedBy && challenge.solvedBy.length > 0 && (
+                          <span className="solve-count">{challenge.solvedBy.length} {challenge.solvedBy.length === 1 ? 'solve' : 'solves'}</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => !isDisabled && handleOpenChallenge(challenge)}
+                        className="btn btn-small"
+                        disabled={isSolved || isDisabled}
+                        style={isDisabled ? { backgroundColor: 'transparent', cursor: 'not-allowed', opacity: 0.8, border: '1px solid var(--text-dim)' } : {}}
+                      >
+                        {isSolved ? <><FaCheck /> Completed</> : (isDisabled ? 'Unavailable' : 'Start Challenge')}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            ))}
+            )})}
           </div>
           )}
         </div>
@@ -403,36 +516,62 @@ function Challenges() {
               </div>
             ) : (
             <div className="challenges-grid">
-            {getChallengesByCategory('crypto').map((challenge) => (
+            {getChallengesByCategory('crypto').map((challenge) => {
+              const isLocked = competition?.status === 'upcoming' || competition?.status === 'ended'
+              const isSolved = teamData?.solvedChallenges.includes(challenge.id)
+              const isDisabled = challenge.disabled
+              
+              return (
               <div
                 key={challenge.id}
-                className={`challenge-card ${teamData?.solvedChallenges.includes(challenge.id) ? 'solved' : ''}`}
+                className={`challenge-card ${isSolved ? 'solved' : ''} ${isLocked ? 'locked' : ''} ${isDisabled ? 'disabled-card' : ''}`}
+                style={isDisabled ? { opacity: 0.7, border: '1px solid var(--text-dim)' } : {}}
               >
                 <div className="challenge-header">
                   <h3>{challenge.title}</h3>
-                  <span className={`difficulty ${challenge.difficulty}`}>{challenge.difficulty}</span>
-                </div>
-                <p className="challenge-description">
-                  {challenge.description.substring(0, 120)}
-                  {challenge.description.length > 120 ? '...' : ''}
-                </p>
-                <div className="challenge-footer">
-                  <div className="challenge-meta">
-                    <span className="points">{challenge.points} pts</span>
-                    {challenge.solvedBy && challenge.solvedBy.length > 0 && (
-                      <span className="solve-count">{challenge.solvedBy.length} {challenge.solvedBy.length === 1 ? 'solve' : 'solves'}</span>
-                    )}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {isDisabled && <span className="difficulty" style={{ backgroundColor: 'transparent', color: 'var(--text)', border: '1px solid var(--text-dim)' }}>DISABLED</span>}
+                    <span className={`difficulty ${challenge.difficulty}`}>{challenge.difficulty}</span>
                   </div>
-                  <button
-                    onClick={() => handleOpenChallenge(challenge)}
-                    className="btn btn-small"
-                    disabled={teamData?.solvedChallenges.includes(challenge.id)}
-                  >
-                    {teamData?.solvedChallenges.includes(challenge.id) ? '✓ Completed' : 'Start Challenge'}
-                  </button>
                 </div>
+                
+                {isLocked ? (
+                  <div className="challenge-locked-content">
+                    <div className="lock-icon">
+                      <FaLock />
+                    </div>
+                    <p className="lock-message">
+                      {competition?.status === 'ended' 
+                        ? 'Competition has ended' 
+                        : 'Challenge details will be revealed when the competition starts'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="challenge-description">
+                      {challenge.description.substring(0, 120)}
+                      {challenge.description.length > 120 ? '...' : ''}
+                    </p>
+                    <div className="challenge-footer">
+                      <div className="challenge-meta">
+                        <span className="points">{challenge.points} pts</span>
+                        {challenge.solvedBy && challenge.solvedBy.length > 0 && (
+                          <span className="solve-count">{challenge.solvedBy.length} {challenge.solvedBy.length === 1 ? 'solve' : 'solves'}</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => !isDisabled && handleOpenChallenge(challenge)}
+                        className="btn btn-small"
+                        disabled={isSolved || isDisabled}
+                        style={isDisabled ? { backgroundColor: 'transparent', cursor: 'not-allowed', opacity: 0.8, border: '1px solid var(--text-dim)' } : {}}
+                      >
+                        {isSolved ? <><FaCheck /> Completed</> : (isDisabled ? 'Unavailable' : 'Start Challenge')}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            ))}
+            )})}
           </div>
             )}
           </div>
@@ -440,7 +579,7 @@ function Challenges() {
         </div>
 
         {message.text && (
-          <div className={`message ${message.type}`} style={{ display: 'block', background: message.type === 'warning' ? 'rgba(245, 158, 11, 0.15)' : undefined, color: message.type === 'warning' ? '#f59e0b' : undefined, border: message.type === 'warning' ? '1px solid rgba(245, 158, 11, 0.3)' : undefined }}>
+          <div className={`message ${message.type}`} style={{ display: 'block', background: 'transparent', color: 'var(--text)', border: '1px solid var(--text-dim)' }}>
             {message.text}
           </div>
         )}
@@ -541,9 +680,9 @@ function Challenges() {
       {modalOpen && currentChallenge && (
         <div className="modal" style={{ display: 'block' }}>
           <div className="modal-content">
-            <span className="close" onClick={() => setModalOpen(false)}>
-              &times;
-            </span>
+            <button className="close" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', padding: 0 }}>
+              <FaTimes />
+            </button>
             <div className="modal-header-section">
               <h2>{currentChallenge.title}</h2>
               <div className="modal-badges">
@@ -555,6 +694,44 @@ function Challenges() {
               <h4>Challenge Description</h4>
               <p>{currentChallenge.description}</p>
             </div>
+            
+            {currentChallenge.files && currentChallenge.files.length > 0 && (
+              <div className="modal-files-section">
+                <h4 className="modal-files-title">
+                  <FaFileAlt />
+                  Attached Files
+                </h4>
+                <div className="modal-files-list">
+                  {currentChallenge.files.map((file, idx) => (
+                    <a
+                      key={idx}
+                      href={getChallengeFileUrl(currentChallenge.id, file.filename)}
+                      download={file.originalName}
+                      className="modal-file-item"
+                    >
+                      <div className="file-item-content">
+                        <div className="file-icon">
+                          {getFileIcon(file.originalName)}
+                        </div>
+                        <div className="file-details">
+                          <span className="file-name">{file.originalName}</span>
+                          <span className="file-size">
+                            {file.size >= 1024 * 1024 
+                              ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                              : `${(file.size / 1024).toFixed(2)} KB`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      <div className="file-download-icon">
+                        <FaDownload />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <div className="input-group">
               <label htmlFor="flagInput">Submit Your Flag</label>
               <input
@@ -562,14 +739,30 @@ function Challenges() {
                 id="flagInput"
                 value={flagInput}
                 onChange={(e) => setFlagInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSubmitFlag()}
-                placeholder="flag{your_answer_here}"
-                autoFocus
+                onKeyPress={(e) => e.key === 'Enter' && !currentChallenge.disabled && competition?.status !== 'ended' && handleSubmitFlag()}
+                placeholder={
+                  currentChallenge.disabled ? "Submissions disabled" : 
+                  competition?.status === 'ended' ? "Competition ended" : 
+                  "flag{your_answer_here}"
+                }
+                disabled={currentChallenge.disabled || competition?.status === 'ended'}
+                autoFocus={!currentChallenge.disabled && competition?.status !== 'ended'}
               />
-              <small className="input-hint">Press Enter or click Submit to validate your flag</small>
+              <small className="input-hint">
+                {currentChallenge.disabled 
+                  ? "This challenge is currently disabled." 
+                  : competition?.status === 'ended'
+                  ? "The competition has ended. Submissions are closed."
+                  : "Press Enter or click Submit to validate your flag"}
+              </small>
             </div>
-            <button onClick={handleSubmitFlag} className="btn btn-primary">
-              Submit Flag
+            <button 
+              onClick={handleSubmitFlag} 
+              className="btn btn-primary"
+              disabled={currentChallenge.disabled || competition?.status === 'ended'}
+              style={(currentChallenge.disabled || competition?.status === 'ended') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            >
+              {currentChallenge.disabled ? 'Unavailable' : competition?.status === 'ended' ? 'Competition Ended' : 'Submit Flag'}
             </button>
           </div>
         </div>

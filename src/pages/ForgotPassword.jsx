@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { API_URL } from '../utils/api';
+import logo from '../assets/cseh_final_logo.png';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -28,106 +28,41 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="forgot-password-container">
-      <div className="forgot-password-box">
-        <h1>Reset Password</h1>
-        <p className="forgot-password-subtitle">Cache Me If You Can - Round 2</p>
-        <p className="forgot-password-desc">Enter your email to receive a password reset link.</p>
-        <form onSubmit={handleSubmit} className="forgot-password-form">
-          <label htmlFor="forgot-email">Email</label>
-          <input
-            id="forgot-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="Enter your email"
-          />
-          <button type="submit">Send Reset Link</button>
+    <div className="login-page">
+      <div className="auth-box-modern" style={{ margin: '0 auto', maxWidth: '400px', padding: '40px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img src={logo} alt="Logo" style={{ height: '60px' }} />
+        </div>
+        <div className="auth-header" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h2>Reset Password</h2>
+          <p>Cache Me If You Can - Round 2</p>
+        </div>
+        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '2rem', fontSize: '0.95rem' }}>
+          Enter your email to receive a password reset link.
+        </p>
+        <form onSubmit={handleSubmit}>
+          <div className="modern-input-group">
+            <input
+              id="forgot-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder=" "
+            />
+            <label htmlFor="forgot-email">Email</label>
+          </div>
+          <button type="submit" className="btn-modern">Send Reset Link</button>
         </form>
-        {message && <div className="forgot-password-message">{message}</div>}
+        {message && (
+          <div className={`message ${message.includes('sent') ? 'success' : 'error'}`} style={{ display: 'block', marginTop: '1.5rem' }}>
+            {message}
+          </div>
+        )}
+        <div className="auth-footer">
+          <a href="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>← Back to Login</a>
+        </div>
       </div>
-      <style>{`
-        .forgot-password-container {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle at 20% 20%, #1e293b 60%, #0f172a 100%);
-        }
-        .forgot-password-box {
-          background: rgba(30, 41, 59, 0.95);
-          padding: 2.5rem 2rem 2rem 2rem;
-          border-radius: 16px;
-          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-          max-width: 400px;
-          width: 100%;
-          color: #fff;
-        }
-        .forgot-password-box h1 {
-          margin-bottom: 0.25rem;
-          font-size: 2rem;
-          font-weight: bold;
-          text-align: center;
-        }
-        .forgot-password-subtitle {
-          text-align: center;
-          color: #60a5fa;
-          font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 1rem;
-        }
-        .forgot-password-desc {
-          text-align: center;
-          margin-bottom: 1.5rem;
-          color: #cbd5e1;
-        }
-        .forgot-password-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .forgot-password-form label {
-          font-size: 1rem;
-          margin-bottom: 0.25rem;
-        }
-        .forgot-password-form input {
-          padding: 0.75rem 1rem;
-          border-radius: 8px;
-          border: none;
-          font-size: 1rem;
-          background: #334155;
-          color: #fff;
-        }
-        .forgot-password-form input:focus {
-          outline: 2px solid #60a5fa;
-        }
-        .forgot-password-form button {
-          padding: 0.75rem 1rem;
-          border-radius: 8px;
-          border: none;
-          background: #3b82f6;
-          color: #fff;
-          font-size: 1rem;
-          font-weight: bold;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .forgot-password-form button:hover {
-          background: #2563eb;
-        }
-        .forgot-password-message {
-          margin-top: 1rem;
-          text-align: center;
-          color: #38bdf8;
-          font-weight: 500;
-          padding: 1rem;
-          background: rgba(56, 189, 248, 0.1);
-          border-radius: 8px;
-          border: 1px solid rgba(56, 189, 248, 0.3);
-          line-height: 1.6;
-        }
-      `}</style>
     </div>
   );
 };

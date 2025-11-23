@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaLock, FaGlobe, FaCode } from 'react-icons/fa'
 import { signup, login, setCurrentUser } from '../utils/api'
+import logo from '../assets/cseh_final_logo.png'
 
 function Login() {
   const [isLogin, setIsLogin] = useState(true)
@@ -64,14 +65,14 @@ function Login() {
     setLoading(true)
 
     try {
-      await signup(signupData.username, signupData.email, signupData.password)
-      showMessage('Account created successfully! Please login.', 'success')
+      const response = await signup(signupData.username, signupData.email, signupData.password)
+      showMessage(response.message || 'Account created successfully! Please login.', 'success')
 
       setTimeout(() => {
         setIsLogin(true)
         setLoginData({ username: signupData.username, password: '' })
         setSignupData({ username: '', email: '', password: '', confirmPassword: '' })
-      }, 1500)
+      }, 3000)
     } catch (error) {
       showMessage(error.message || 'Signup failed', 'error')
     } finally {
@@ -86,7 +87,7 @@ function Login() {
         <div className="login-visual">
           <div className="visual-content">
             <h1>
-              <FaShieldAlt style={{ marginRight: '15px', display: 'inline-block', verticalAlign: 'middle' }} /> 
+              <img src={logo} alt="Logo" style={{ height: '60px', marginRight: '15px', display: 'inline-block', verticalAlign: 'middle' }} /> 
               Cache Me If You Can
             </h1>
             <p className="visual-subtitle">

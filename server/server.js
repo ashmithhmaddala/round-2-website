@@ -179,7 +179,6 @@ async function initializeCompetition() {
 async function initializeDefaultChallenges() {
   const count = await Challenge.countDocuments();
   if (count === 0) {
-    const bcrypt = require('bcrypt');
     const defaultChallenges = [
       // OSINT Challenges
       {
@@ -923,7 +922,6 @@ app.post('/api/challenges/submit', async (req, res) => {
     }
 
     // Check flag using bcrypt
-    const bcrypt = require('bcrypt');
     const isFlagValid = await bcrypt.compare(flag, challenge.flagHash);
     if (!isFlagValid) {
       await logAction('SOLVE_FAILED', username, 'user', `Incorrect flag for challenge ${challengeId}`, req);
@@ -998,7 +996,6 @@ app.post('/api/challenges/submit', async (req, res) => {
 // Create challenge (admin)
 app.post('/api/challenges', async (req, res) => {
   try {
-    const bcrypt = require('bcrypt');
     const { flag, ...rest } = req.body;
     const flagHash = await bcrypt.hash(flag, 12);
     const challenge = new Challenge({ ...rest, flagHash });
@@ -1015,7 +1012,6 @@ app.post('/api/challenges', async (req, res) => {
 // Update challenge (admin)
 app.put('/api/challenges/:id', async (req, res) => {
   try {
-    const bcrypt = require('bcrypt');
     const updateData = { ...req.body };
     if (updateData.flag) {
       updateData.flagHash = await bcrypt.hash(updateData.flag, 12);

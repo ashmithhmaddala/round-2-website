@@ -205,11 +205,6 @@ function Dashboard() {
       showMessage('Team created successfully!', 'success')
       setTeamName('')
     } catch (error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('No token') || error.message.includes('Forbidden')) {
-        logout()
-        navigate('/')
-        return
-      }
       showMessage('Failed to create team: ' + error.message, 'error')
     } finally {
       setIsCreatingTeam(false)
@@ -231,11 +226,6 @@ function Dashboard() {
       showMessage('Successfully joined the team!', 'success')
       setTeamCode('')
     } catch (error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('No token') || error.message.includes('Forbidden')) {
-        logout()
-        navigate('/')
-        return
-      }
       showMessage('Failed to join team: ' + error.message, 'error')
     } finally {
       setIsJoiningTeam(false)
@@ -256,11 +246,6 @@ function Dashboard() {
       setHasTeam(false)
       setTeamData(null)
     } catch (error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('No token') || error.message.includes('Forbidden')) {
-        logout()
-        navigate('/')
-        return
-      }
       showMessage('Failed to leave team: ' + error.message, 'error')
     }
   }

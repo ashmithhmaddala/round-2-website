@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../utils/api';
 import { FaClock, FaPlay, FaPause, FaStop, FaSnowflake, FaEdit, FaSave, FaTimes, FaCalendarAlt, FaHistory } from 'react-icons/fa';
 import { LuTrophy } from "react-icons/lu";
@@ -9,6 +9,7 @@ const CompetitionManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -18,6 +19,10 @@ const CompetitionManager = () => {
     allowLateSubmissions: false,
     showScoreboard: true
   });
+
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
     fetchCompetition();
@@ -35,7 +40,7 @@ const CompetitionManager = () => {
       setCompetition(data);
       
       // Only update form data if not editing to avoid overwriting user input
-      if (!isEditing) {
+      if (!isEditingRef.current) {
         setFormData({
           name: data.name,
           description: data.description,

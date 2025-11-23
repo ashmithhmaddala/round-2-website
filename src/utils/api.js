@@ -1,6 +1,15 @@
 // API Base URL - uses environment variable for flexibility
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Helper to get admin headers
+const getAdminHeaders = () => {
+  const username = localStorage.getItem('currentAdminUsername');
+  return {
+    'Content-Type': 'application/json',
+    'x-admin-username': username || 'admin'
+  };
+};
+
 // ==================== AUTH ====================
 
 export const signup = async (username, email, password) => {
@@ -113,7 +122,7 @@ export const submitFlag = async (challengeId, flag, username, teamCode) => {
 export const createChallenge = async (challenge) => {
   const response = await fetch(`${API_URL}/challenges`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
   });
   const data = await response.json();
@@ -124,7 +133,7 @@ export const createChallenge = async (challenge) => {
 export const updateChallenge = async (id, challenge) => {
   const response = await fetch(`${API_URL}/challenges/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
   });
   const data = await response.json();
@@ -134,7 +143,8 @@ export const updateChallenge = async (id, challenge) => {
 
 export const deleteChallenge = async (id) => {
   const response = await fetch(`${API_URL}/challenges/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -145,9 +155,16 @@ export const deleteChallenge = async (id) => {
 export const uploadChallengeFile = async (challengeId, file) => {
   const formData = new FormData();
   formData.append('file', file);
+  
+  const username = localStorage.getItem('currentAdminUsername');
+  const headers = {};
+  if (username) {
+    headers['x-admin-username'] = username;
+  }
 
   const response = await fetch(`${API_URL}/challenges/${challengeId}/files`, {
     method: 'POST',
+    headers: headers,
     body: formData // Don't set Content-Type header, browser will set it with boundary
   });
   const data = await response.json();
@@ -158,7 +175,8 @@ export const uploadChallengeFile = async (challengeId, file) => {
 // Delete file from challenge
 export const deleteChallengeFile = async (challengeId, filename) => {
   const response = await fetch(`${API_URL}/challenges/${challengeId}/files/${filename}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -206,7 +224,8 @@ export const getAllUsers = async () => {
 
 export const toggleUserBan = async (userId) => {
   const response = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
-    method: 'PATCH'
+    method: 'PATCH',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -215,7 +234,8 @@ export const toggleUserBan = async (userId) => {
 
 export const deleteUser = async (userId) => {
   const response = await fetch(`${API_URL}/admin/users/${userId}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -225,7 +245,7 @@ export const deleteUser = async (userId) => {
 export const createAdmin = async (username, email, password, createdBy) => {
   const response = await fetch(`${API_URL}/admin/admins`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify({ username, email, password, createdBy })
   });
   const data = await response.json();
@@ -235,7 +255,8 @@ export const createAdmin = async (username, email, password, createdBy) => {
 
 export const deleteAdmin = async (username) => {
   const response = await fetch(`${API_URL}/admin/admins/${username}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -245,7 +266,7 @@ export const deleteAdmin = async (username) => {
 export const changePassword = async (username, currentPassword, newPassword) => {
   const response = await fetch(`${API_URL}/admin/change-password`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify({ username, currentPassword, newPassword })
   });
   const data = await response.json();
@@ -256,7 +277,7 @@ export const changePassword = async (username, currentPassword, newPassword) => 
 export const resetPassword = async (targetUsername, newPassword, requestingUsername) => {
   const response = await fetch(`${API_URL}/admin/reset-password`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify({ targetUsername, newPassword, requestingUsername })
   });
   const data = await response.json();
@@ -289,7 +310,8 @@ export const getSolveTimeline = async () => {
 
 export const toggleChallengeVisibility = async (challengeId) => {
   const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-visibility`, {
-    method: 'PATCH'
+    method: 'PATCH',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -298,7 +320,8 @@ export const toggleChallengeVisibility = async (challengeId) => {
 
 export const toggleChallengeDisabled = async (challengeId) => {
   const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-disabled`, {
-    method: 'PATCH'
+    method: 'PATCH',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -324,7 +347,7 @@ export const getAllAnnouncements = async () => {
 export const createAnnouncement = async (announcement) => {
   const response = await fetch(`${API_URL}/admin/announcements`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(announcement)
   });
   const data = await response.json();
@@ -335,7 +358,7 @@ export const createAnnouncement = async (announcement) => {
 export const updateAnnouncement = async (id, announcement) => {
   const response = await fetch(`${API_URL}/admin/announcements/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(announcement)
   });
   const data = await response.json();
@@ -345,7 +368,8 @@ export const updateAnnouncement = async (id, announcement) => {
 
 export const deleteAnnouncement = async (id) => {
   const response = await fetch(`${API_URL}/admin/announcements/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -354,7 +378,8 @@ export const deleteAnnouncement = async (id) => {
 
 export const toggleAnnouncementStatus = async (id) => {
   const response = await fetch(`${API_URL}/admin/announcements/${id}/toggle`, {
-    method: 'PATCH'
+    method: 'PATCH',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
@@ -363,7 +388,8 @@ export const toggleAnnouncementStatus = async (id) => {
 
 export const toggleAnnouncementPin = async (id) => {
   const response = await fetch(`${API_URL}/admin/announcements/${id}/pin`, {
-    method: 'PATCH'
+    method: 'PATCH',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);

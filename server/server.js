@@ -48,9 +48,15 @@ const logAction = async (action, actor, role, details, req) => {
       if (ipAddress === '::1') ipAddress = '127.0.0.1';
     }
 
+    // Use admin username from header if available and actor is generic 'admin'
+    let finalActor = actor;
+    if (req && actor === 'admin' && req.headers['x-admin-username']) {
+      finalActor = req.headers['x-admin-username'];
+    }
+
     await Log.create({
       action,
-      actor,
+      actor: finalActor,
       role,
       details,
       ipAddress

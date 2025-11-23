@@ -117,9 +117,16 @@ const flagLimiter = rateLimit({
   max: 10, // limit each IP to 10 flag submissions per windowMs
   message: { error: 'Too many flag submissions, please try again later.' }
 });
+const passwordResetLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 1, // limit each IP to 1 request per windowMs
+  message: { error: 'Too many password reset requests, please try again after 30 minutes.' }
+});
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/challenges/submit', flagLimiter);
+app.use('/api/auth/forgot-password', passwordResetLimiter);
+app.use('/api/auth/forgot-admin-password', passwordResetLimiter);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)

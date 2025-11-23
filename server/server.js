@@ -1003,6 +1003,9 @@ app.post('/api/challenges', async (req, res) => {
     const flagHash = await bcrypt.hash(flag, 12);
     const challenge = new Challenge({ ...rest, flagHash });
     await challenge.save();
+    
+    await logAction('CREATE_CHALLENGE', 'admin', 'admin', `Created challenge: ${challenge.title} (${challenge.id})`, req);
+    
     res.json({ success: true, challenge });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1023,6 +1026,9 @@ app.put('/api/challenges/:id', async (req, res) => {
       updateData,
       { new: true }
     );
+    
+    await logAction('UPDATE_CHALLENGE', 'admin', 'admin', `Updated challenge: ${challenge.title} (${challenge.id})`, req);
+    
     res.json({ success: true, challenge });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1045,6 +1051,9 @@ app.delete('/api/challenges/:id', async (req, res) => {
     }
     
     await Challenge.findOneAndDelete({ id: req.params.id });
+    
+    await logAction('DELETE_CHALLENGE', 'admin', 'admin', `Deleted challenge: ${req.params.id}`, req);
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1119,6 +1128,8 @@ app.post('/api/challenges/:id/files', upload.single('file'), async (req, res) =>
       { id: req.params.id },
       { $push: { files: fileMetadata } }
     );
+
+    await logAction('UPLOAD_FILE', 'admin', 'admin', `Uploaded file: ${req.file.originalname} for challenge ${req.params.id}`, req);
 
     res.json({
       success: true,
@@ -1204,6 +1215,8 @@ app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
       { id: req.params.id },
       { $pull: { files: { filename: req.params.filename } } }
     );
+
+    await logAction('DELETE_FILE', 'admin', 'admin', `Deleted file: ${fileMetadata.originalName} from challenge ${req.params.id}`, req);
 
     res.json({
       success: true,
@@ -1385,6 +1398,8 @@ app.post('/api/admin/admins', async (req, res) => {
     
     await admin.save();
     
+    await logAction('CREATE_ADMIN', 'admin', 'admin', `Created admin: ${admin.username}`, req);
+    
     res.json({
       success: true,
       admin: {
@@ -1437,6 +1452,8 @@ app.put('/api/admin/change-password', async (req, res) => {
     admin.password = hashedPassword;
     await admin.save();
     
+    await logAction('CHANGE_PASSWORD', 'admin', 'admin', `Changed password for: ${username}`, req);
+    
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1481,6 +1498,8 @@ app.put('/api/admin/reset-password', async (req, res) => {
     admin.password = hashedPassword;
     await admin.save();
     
+    await logAction('RESET_PASSWORD', 'admin', 'admin', `Reset password for: ${targetUsername}`, req);
+    
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1502,6 +1521,9 @@ app.delete('/api/admin/admins/:username', async (req, res) => {
     }
     
     await Admin.findOneAndDelete({ username: req.params.username });
+    
+    await logAction('DELETE_ADMIN', 'admin', 'admin', `Deleted admin: ${req.params.username}`, req);
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1814,6 +1836,8 @@ app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
       { $set: { visible: newVisibility } }
     );
 
+    await logAction('TOGGLE_CHALLENGE_VISIBILITY', 'admin', 'admin', `Toggled visibility for challenge ${req.params.id} to ${newVisibility}`, req);
+
     res.json({ 
       success: true, 
       message: `Challenge ${newVisibility ? 'shown' : 'hidden'}`,
@@ -1841,6 +1865,8 @@ app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
       { id: req.params.id },
       { $set: { disabled: newDisabledStatus } }
     );
+
+    await logAction('TOGGLE_CHALLENGE_DISABLED', 'admin', 'admin', `Toggled disabled status for challenge ${req.params.id} to ${newDisabledStatus}`, req);
 
     res.json({ 
       success: true, 
@@ -1946,6 +1972,9 @@ app.post('/api/admin/announcements', async (req, res) => {
     });
 
     await announcement.save();
+    
+    await logAction('CREATE_ANNOUNCEMENT', 'admin', 'admin', `Created announcement: ${announcement.title}`, req);
+    
     res.json({ success: true, announcement });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1977,6 +2006,8 @@ app.put('/api/admin/announcements/:id', async (req, res) => {
       return res.status(404).json({ error: 'Announcement not found' });
     }
 
+    await logAction('UPDATE_ANNOUNCEMENT', 'admin', 'admin', `Updated announcement: ${announcement.title}`, req);
+
     res.json({ success: true, announcement });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1991,6 +2022,8 @@ app.delete('/api/admin/announcements/:id', async (req, res) => {
     if (!announcement) {
       return res.status(404).json({ error: 'Announcement not found' });
     }
+
+    await logAction('DELETE_ANNOUNCEMENT', 'admin', 'admin', `Deleted announcement: ${req.params.id}`, req);
 
     res.json({ success: true, message: 'Announcement deleted' });
   } catch (error) {
@@ -2009,6 +2042,8 @@ app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
 
     announcement.active = !announcement.active;
     await announcement.save();
+
+    await logAction('TOGGLE_ANNOUNCEMENT', 'admin', 'admin', `Toggled announcement ${req.params.id} to ${announcement.active ? 'active' : 'inactive'}`, req);
 
     res.json({ 
       success: true, 
@@ -2031,6 +2066,8 @@ app.patch('/api/admin/announcements/:id/pin', async (req, res) => {
 
     announcement.pinned = !announcement.pinned;
     await announcement.save();
+
+    await logAction('PIN_ANNOUNCEMENT', 'admin', 'admin', `Toggled pin for announcement ${req.params.id} to ${announcement.pinned ? 'pinned' : 'unpinned'}`, req);
 
     res.json({ 
       success: true, 

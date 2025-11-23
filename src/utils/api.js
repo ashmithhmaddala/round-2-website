@@ -484,7 +484,9 @@ export const setAdminAuth = (isAuthenticated) => {
 
 export const getAdminAuth = () => {
   const authData = localStorage.getItem('adminAuth');
-  if (!authData) return false;
+  const token = localStorage.getItem('adminToken');
+  
+  if (!authData || !token) return false;
   
   try {
     const { authenticated, lastActivity } = JSON.parse(authData);
@@ -493,6 +495,7 @@ export const getAdminAuth = () => {
     // Check if admin session has expired (30 minutes of inactivity)
     if (now - lastActivity > INACTIVITY_TIMEOUT) {
       localStorage.removeItem('adminAuth');
+      localStorage.removeItem('adminToken');
       return false;
     }
     
@@ -505,6 +508,7 @@ export const getAdminAuth = () => {
   } catch (error) {
     // Handle legacy format or corrupted data
     localStorage.removeItem('adminAuth');
+    localStorage.removeItem('adminToken');
     return false;
   }
 };

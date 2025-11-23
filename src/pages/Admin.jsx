@@ -112,6 +112,11 @@ function Admin() {
       setUsers(usersData)
       setLastUpdated(new Date())
     } catch (error) {
+      if (error.message.includes('Unauthorized') || error.message.includes('No token') || error.message.includes('Forbidden')) {
+        setAdminAuth(false)
+        navigate('/admin-login')
+        return
+      }
       if (!silent) showMessage('Failed to load data: ' + error.message, 'error')
     } finally {
       if (!silent) setLoading(false)

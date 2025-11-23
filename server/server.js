@@ -774,15 +774,22 @@ app.post('/api/challenges/submit', async (req, res) => {
     if (competition) {
       const now = new Date();
       
-      // Auto-update competition status
-      if (competition.status === 'upcoming' && now >= competition.startTime) {
-        competition.status = 'live';
-        await competition.save();
-      } else if (competition.status === 'live' && competition.freezeTime && now >= competition.freezeTime) {
-        competition.status = 'frozen';
-        await competition.save();
-      } else if ((competition.status === 'live' || competition.status === 'frozen') && now >= competition.endTime) {
-        competition.status = 'ended';
+      // Auto-update competition status (Enforce time-based status)
+      let newStatus = competition.status;
+      if (now < competition.startTime) {
+        newStatus = 'upcoming';
+      } else if (now >= competition.endTime) {
+        newStatus = 'ended';
+      } else if (competition.freezeTime && now >= competition.freezeTime) {
+        newStatus = 'frozen';
+      } else if (now >= competition.startTime && now < competition.endTime) {
+        if (newStatus === 'upcoming' || newStatus === 'ended') {
+          newStatus = 'live';
+        }
+      }
+
+      if (newStatus !== competition.status) {
+        competition.status = newStatus;
         await competition.save();
       }
 
@@ -1930,12 +1937,18 @@ app.get('/api/competition', async (req, res) => {
     const now = new Date();
     let newStatus = competition.status;
 
-    if (competition.status === 'upcoming' && now >= competition.startTime) {
-      newStatus = 'live';
-    } else if (competition.status === 'live' && competition.freezeTime && now >= competition.freezeTime) {
-      newStatus = 'frozen';
-    } else if ((competition.status === 'live' || competition.status === 'frozen') && now >= competition.endTime) {
+    // Enforce time-based status
+    if (now < competition.startTime) {
+      newStatus = 'upcoming';
+    } else if (now >= competition.endTime) {
       newStatus = 'ended';
+    } else if (competition.freezeTime && now >= competition.freezeTime) {
+      newStatus = 'frozen';
+    } else if (now >= competition.startTime && now < competition.endTime) {
+      // If we are in the active period, ensure we are not 'upcoming' or 'ended'
+      if (newStatus === 'upcoming' || newStatus === 'ended') {
+        newStatus = 'live';
+      }
     }
 
     if (newStatus !== competition.status) {
@@ -1993,6 +2006,20 @@ app.put('/api/admin/competition', async (req, res) => {
     if (freezeTime !== undefined) competition.freezeTime = freeze;
     if (allowLateSubmissions !== undefined) competition.allowLateSubmissions = allowLateSubmissions;
     if (showScoreboard !== undefined) competition.showScoreboard = showScoreboard;
+
+    // Recalculate status based on new times
+    const now = new Date();
+    if (now < competition.startTime) {
+      competition.status = 'upcoming';
+    } else if (now >= competition.endTime) {
+      competition.status = 'ended';
+    } else if (competition.freezeTime && now >= competition.freezeTime) {
+      competition.status = 'frozen';
+    } else if (now >= competition.startTime && now < competition.endTime) {
+      if (competition.status === 'upcoming' || competition.status === 'ended') {
+        competition.status = 'live';
+      }
+    }
 
     await competition.save();
 

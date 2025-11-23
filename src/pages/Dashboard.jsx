@@ -437,7 +437,7 @@ function Dashboard() {
                       <FaUsers />
                       <h4>Team Members</h4>
                     </div>
-                    <div className="count-badge">{teamData.members.length}/4</div>
+                    <div className="count-badge">{teamData.members.length}/3</div>
                   </div>
                   <div className="card-body">
                     <div className="members-list">

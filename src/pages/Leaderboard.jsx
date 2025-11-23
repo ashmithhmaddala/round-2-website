@@ -477,7 +477,7 @@ function Leaderboard() {
                             <td className="members-cell">
                               <div className="members-count">
                                 <FaUsers />
-                                <span>{team.members.length}/4</span>
+                                <span>{team.members.length}/3</span>
                               </div>
                             </td>
                             <td className="score-cell">

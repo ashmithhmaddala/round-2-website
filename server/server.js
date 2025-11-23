@@ -321,7 +321,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     await user.save();
 
-    await logAction('REGISTER', username, 'user', 'User registered (pending verification)', req);
+    logAction('REGISTER', username, 'user', 'User registered (pending verification)', req);
 
     // Send verification email
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
@@ -584,7 +584,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     
     await user.save();
 
-    await logAction('PASSWORD_RESET', isUser ? user.username : user.username, isUser ? 'user' : 'admin', 'Password reset successfully', req);
+    logAction('PASSWORD_RESET', isUser ? user.username : user.username, isUser ? 'user' : 'admin', 'Password reset successfully', req);
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
@@ -639,7 +639,7 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
     };
     transporter.sendMail(mailOptions).catch(err => console.error('Error sending admin password reset email:', err));
     
-    await logAction('FORGOT_PASSWORD_REQUEST', admin.username, 'admin', 'Admin requested password reset', req);
+    logAction('FORGOT_PASSWORD_REQUEST', admin.username, 'admin', 'Admin requested password reset', req);
 
     res.json({ message: 'Password reset email sent to admin.' });
   } catch (err) {
@@ -735,6 +735,11 @@ app.post('/api/teams/join', async (req, res) => {
           score: team.score
         }
       });
+    }
+
+    // Check team size limit
+    if (team.members.length >= 3) {
+      return res.status(400).json({ error: 'Team is full (max 3 members)' });
     }
 
     // Add member

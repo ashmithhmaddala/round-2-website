@@ -2,19 +2,19 @@ import EmailQueue from '../models/EmailQueue.js';
 import path from 'path';
 
 let isProcessing = false;
+const BATCH_SIZE = 5; // Match maxConnections in nodemailer config
 
 export const startEmailWorker = (transporter, logoPath) => {
   console.log('📧 Email worker started');
   
-  // Check for emails every 2 seconds
+  // Check for emails every 500ms
   setInterval(async () => {
     if (isProcessing) return;
     isProcessing = true;
 
     try {
-      // Find one pending email or a failed one that hasn't exceeded max retries
-      // We prioritize pending, then failed ones that are due for retry
-      const job = await EmailQueue.findOne({
+      // Find pending emails or failed ones that haven't exceeded max retries
+      const jobs = await EmailQueue.find({
         $or: [
           { status: 'pending' },
           { 
@@ -24,17 +24,19 @@ export const startEmailWorker = (transporter, logoPath) => {
             lastAttempt: { $lt: new Date(Date.now() - 60000) } 
           }
         ]
-      }).sort({ createdAt: 1 });
+      })
+      .sort({ createdAt: 1 })
+      .limit(BATCH_SIZE);
 
-      if (job) {
-        await processJob(job, transporter, logoPath);
+      if (jobs.length > 0) {
+        await Promise.all(jobs.map(job => processJob(job, transporter, logoPath)));
       }
     } catch (error) {
       console.error('Email worker error:', error);
     } finally {
       isProcessing = false;
     }
-  }, 2000); // 2 second interval (throttling for Gmail)
+  }, 500); // 0.5 second interval
 };
 
 const processJob = async (job, transporter, logoPath) => {

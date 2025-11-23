@@ -56,7 +56,6 @@ const LoggingAndMonitoring = () => {
                   <th>Actor</th>
                   <th>Role</th>
                   <th>Details</th>
-                  <th>IP Address</th>
                 </tr>
               </thead>
               <tbody>
@@ -83,16 +82,11 @@ const LoggingAndMonitoring = () => {
                     <td>{log.actor}</td>
                     <td>{log.role}</td>
                     <td>{log.details}</td>
-                    <td>
-                      {log.ipAddress === '127.0.0.1' || log.ipAddress === '::1' 
-                        ? <span title="This is your local computer's internal IP">Localhost (You)</span> 
-                        : log.ipAddress}
-                    </td>
                   </tr>
                 ))}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No logs available.</td>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No logs available.</td>
                   </tr>
                 )}
               </tbody>

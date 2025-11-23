@@ -8,6 +8,7 @@ import logo from '../assets/cseh_final_logo.png'
 import RealTimeMonitoring from './RealTimeMonitoring'
 import AnnouncementsManager from './AnnouncementsManager'
 import CompetitionManager from './CompetitionManager'
+import LoggingAndMonitoring from './LoggingAndMonitoring'
 import '../admin.css'
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend)
@@ -467,6 +468,7 @@ function Admin() {
     { name: 'Challenges', icon: FaPuzzlePiece },
     { name: 'Announcements', icon: FaBullhorn },
     { name: 'Analytics', icon: FaChartLine },
+    { name: 'Logs', icon: FaFileAlt },
     { name: 'Admins', icon: FaShieldAlt }
   ];
 
@@ -531,6 +533,7 @@ function Admin() {
                 {activeTab === 'challenges' && `${filteredChallenges.length} challenges available`}
                 {activeTab === 'announcements' && 'Broadcast messages to all participants'}
                 {activeTab === 'analytics' && 'Performance insights and statistics'}
+                {activeTab === 'logs' && 'Security audit logs and activity tracking'}
                 {activeTab === 'admins' && `${admins.length} admin accounts`}
               </p>
             </div>
@@ -542,6 +545,7 @@ function Admin() {
           {activeTab === 'realtime' && <RealTimeMonitoring />}
           {activeTab === 'competition' && <CompetitionManager />}
           {activeTab === 'announcements' && <AnnouncementsManager />}
+          {activeTab === 'logs' && <LoggingAndMonitoring />}
 
           {activeTab === 'overview' && (
           <div className="admin-section active">

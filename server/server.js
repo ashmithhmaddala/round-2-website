@@ -22,11 +22,43 @@ import Admin from './models/Admin.js';
 import Solve from './models/Solve.js';
 import Announcement from './models/Announcement.js';
 import Competition from './models/Competition.js';
+import Log from './models/Log.js';
 
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (required for Vercel/Heroku to get real IP)
 const PORT = process.env.PORT || 5000;
+
+// Helper function for logging
+const logAction = async (action, actor, role, details, req) => {
+  try {
+    let ipAddress = 'SYSTEM';
+    if (req) {
+      // Get real IP even behind proxy (Vercel/Nginx)
+      const forwarded = req.headers['x-forwarded-for'];
+      if (forwarded) {
+        // x-forwarded-for can be "client, proxy1, proxy2" - we want the first one
+        ipAddress = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0];
+      } else {
+        ipAddress = req.socket.remoteAddress || req.ip;
+      }
+      
+      // Clean up IPv6 localhost
+      if (ipAddress === '::1') ipAddress = '127.0.0.1';
+    }
+
+    await Log.create({
+      action,
+      actor,
+      role,
+      details,
+      ipAddress
+    });
+  } catch (error) {
+    console.error('Logging failed:', error);
+  }
+};
 
 // GridFS bucket - will be initialized after MongoDB connection
 let gfsBucket;
@@ -275,6 +307,8 @@ app.post('/api/auth/signup', async (req, res) => {
 
     await user.save();
 
+    await logAction('REGISTER', username, 'user', 'User registered (pending verification)', req);
+
     // Send verification email
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
@@ -354,11 +388,13 @@ app.post('/api/auth/login', async (req, res) => {
     // Find user by username or email
     const user = await User.findOne({ $or: [{ username }, { email: username }] });
     if (!user) {
+      await logAction('LOGIN_FAILED', username, 'user', 'User not found', req);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     // Check if banned
     if (user.banned) {
+      await logAction('LOGIN_BLOCKED', user.username, 'user', 'Banned user attempted login', req);
       return res.status(403).json({ error: 'This account has been banned for violating the rules.' });
     }
 
@@ -370,8 +406,11 @@ app.post('/api/auth/login', async (req, res) => {
     // Check password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
+      await logAction('LOGIN_FAILED', user.username, 'user', 'Invalid password', req);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+
+    await logAction('LOGIN', user.username, 'user', 'User logged in successfully', req);
 
     res.json({
       success: true,
@@ -527,6 +566,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
     
     await user.save();
 
+    await logAction('PASSWORD_RESET', isUser ? user.username : user.username, isUser ? 'user' : 'admin', 'Password reset successfully', req);
+
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -584,6 +625,9 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
       }]
     };
     await transporter.sendMail(mailOptions);
+    
+    await logAction('FORGOT_PASSWORD_REQUEST', admin.username, 'admin', 'Admin requested password reset', req);
+
     res.json({ message: 'Password reset email sent to admin.' });
   } catch (err) {
     res.status(500).json({ message: 'Error sending admin password reset email' });
@@ -876,6 +920,7 @@ app.post('/api/challenges/submit', async (req, res) => {
     const bcrypt = require('bcrypt');
     const isFlagValid = await bcrypt.compare(flag, challenge.flagHash);
     if (!isFlagValid) {
+      await logAction('SOLVE_FAILED', username, 'user', `Incorrect flag for challenge ${challengeId}`, req);
       return res.json({ success: false, message: 'Incorrect flag' });
     }
 
@@ -889,6 +934,7 @@ app.post('/api/challenges/submit', async (req, res) => {
     });
 
     if (existingSolve) {
+      await logAction('SOLVE_DUPLICATE', username, 'user', `Already solved challenge ${challengeId}`, req);
       return res.json({ success: false, message: 'Challenge already solved' });
     }
 
@@ -898,6 +944,8 @@ app.post('/api/challenges/submit', async (req, res) => {
       challenge: challenge._id
     });
     await solve.save();
+    
+    await logAction('SOLVE_SUCCESS', username, 'user', `Solved challenge ${challengeId} (${challenge.points} pts)`, req);
 
     // Check for first blood
     let isFirstBlood = false;
@@ -1184,6 +1232,8 @@ app.patch('/api/admin/users/:id/ban', async (req, res) => {
     user.banned = !user.banned;
     await user.save();
     
+    await logAction(user.banned ? 'BAN_USER' : 'UNBAN_USER', 'admin', 'admin', `${user.banned ? 'Banned' : 'Unbanned'} user ${user.username}`, req);
+
     res.json({ 
       success: true, 
       message: `User ${user.banned ? 'banned' : 'unbanned'} successfully`,
@@ -1220,6 +1270,9 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     }
 
     await User.findByIdAndDelete(req.params.id);
+    
+    await logAction('DELETE_USER', 'admin', 'admin', `Deleted user ${user.username}`, req);
+
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1262,14 +1315,18 @@ app.post('/api/admin/login', async (req, res) => {
     });
     
     if (!admin) {
+      await logAction('ADMIN_LOGIN_FAILED', username, 'admin', 'Admin not found', req);
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
     
     // Check password
     const isValid = await bcrypt.compare(password, admin.password);
     if (!isValid) {
+      await logAction('ADMIN_LOGIN_FAILED', admin.username, 'admin', 'Invalid password', req);
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
+    
+    await logAction('ADMIN_LOGIN', admin.username, 'admin', 'Admin logged in successfully', req);
     
     res.json({ 
       success: true,
@@ -1821,6 +1878,16 @@ app.get('/api/admin/analytics/timeline', async (req, res) => {
   }
 });
 
+// Get all logs
+app.get('/api/admin/logs', async (req, res) => {
+  try {
+    const logs = await Log.find().sort({ timestamp: -1 }).limit(500);
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ===== ANNOUNCEMENT SYSTEM =====
 
 // Get all announcements (public - for users)
@@ -2069,6 +2136,8 @@ app.put('/api/admin/competition', async (req, res) => {
 
     await competition.save();
 
+    await logAction('UPDATE_COMPETITION', 'admin', 'admin', 'Updated competition settings', req);
+
     res.json({ 
       success: true, 
       message: 'Competition settings updated',
@@ -2095,6 +2164,8 @@ app.put('/api/admin/competition/status', async (req, res) => {
 
     competition.status = status;
     await competition.save();
+
+    await logAction('UPDATE_COMPETITION_STATUS', 'admin', 'admin', `Updated competition status to ${status}`, req);
 
     res.json({ 
       success: true, 

@@ -8,7 +8,13 @@ const LoggingAndMonitoring = () => {
 
   const fetchLogs = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/logs`);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/logs`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       if (Array.isArray(data)) {
         setLogs(data);

@@ -369,7 +369,9 @@ export const getAnnouncements = async () => {
 };
 
 export const getAllAnnouncements = async () => {
-  const response = await fetch(`${API_URL}/admin/announcements`);
+  const response = await fetch(`${API_URL}/admin/announcements`, {
+    headers: getAdminHeaders()
+  });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;

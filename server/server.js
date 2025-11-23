@@ -23,6 +23,8 @@ import Solve from './models/Solve.js';
 import Announcement from './models/Announcement.js';
 import Competition from './models/Competition.js';
 import Log from './models/Log.js';
+import EmailQueue from './models/EmailQueue.js';
+import { startEmailWorker } from './utils/emailWorker.js';
 
 dotenv.config();
 
@@ -157,6 +159,10 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+// Start Email Worker
+const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
+startEmailWorker(transporter, logoPath);
 
 // Initialize super admin if none exists
 async function initializeSuperAdmin() {
@@ -332,11 +338,9 @@ app.post('/api/auth/signup', async (req, res) => {
 
     // Send verification email
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-    const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
     
-    // Send email in background to avoid blocking response
-    transporter.sendMail({
-      from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
+    // Queue email
+    await EmailQueue.create({
       to: email,
       subject: 'Verify Your Account - Cache Me If You Can',
       html: `
@@ -356,13 +360,8 @@ app.post('/api/auth/signup', async (req, res) => {
             <p style="color: #aaa; font-size: 12px;">NHCE Cybersecurity Club</p>
           </div>
         </div>
-      `,
-      attachments: [{
-        filename: 'cseh_final_logo.png',
-        path: logoPath,
-        cid: 'logo'
-      }]
-    }).catch(err => console.error('Error sending verification email:', err));
+      `
+    });
 
     res.json({
       success: true,
@@ -506,9 +505,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
     await user.save();
 
-    // Send email in background
-    transporter.sendMail({
-      from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
+    // Queue email
+    await EmailQueue.create({
       to: email,
       subject: 'Password Reset - Cache Me If You Can',
       html: `
@@ -530,13 +528,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           </div>
           <p style="color: #888; font-size: 12px; text-align: center; margin-top: 15px;">Check spam if you don't see this.</p>
         </div>
-      `,
-      attachments: [{
-        filename: 'cseh_final_logo.png',
-        path: logoPath,
-        cid: 'logo'
-      }]
-    }).catch(err => console.error('Error sending password reset email:', err));
+      `
+    });
 
     res.json({ success: true, message: 'Password reset email sent successfully!' });
   } catch (error) {
@@ -612,13 +605,11 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
     admin.resetPasswordToken = tokenHash;
     admin.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await admin.save();
-    // Send email in background
+    // Queue email
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&admin=true`;
-    const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
     
-    const mailOptions = {
+    await EmailQueue.create({
       to: admin.email,
-      from: process.env.EMAIL_USER,
       subject: 'Admin Password Reset',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
@@ -637,14 +628,8 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
             <p style="color: #aaa; font-size: 12px;">NHCE Cybersecurity Club</p>
           </div>
         </div>
-      `,
-      attachments: [{
-        filename: 'cseh_final_logo.png',
-        path: logoPath,
-        cid: 'logo'
-      }]
-    };
-    transporter.sendMail(mailOptions).catch(err => console.error('Error sending admin password reset email:', err));
+      `
+    });
     
     logAction('FORGOT_PASSWORD_REQUEST', admin.username, 'admin', 'Admin requested password reset', req);
 

@@ -9,6 +9,11 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import multer from 'multer';
 import { GridFSBucket } from 'mongodb';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import User from './models/User.js';
 import Team from './models/Team.js';
@@ -256,24 +261,86 @@ app.post('/api/auth/signup', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     // Create user
     const user = new User({
       username,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      verificationToken,
+      isVerified: false
     });
 
     await user.save();
 
+    // Send verification email
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
+    
+    await transporter.sendMail({
+      from: `"NHCE CTF Team" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Verify Your Account - Cache Me If You Can',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+          <div style="background: white; padding: 30px; border-left: 4px solid #5b67f7;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <img src="cid:logo" alt="NHCE Cybersecurity and Ethical Hacking Club" style="max-width: 150px; height: auto;">
+            </div>
+            <h2 style="color: #333; margin-top: 0;">Verify Your Account</h2>
+            <p style="color: #555; line-height: 1.6;">Welcome to Cache Me If You Can - Round 2!</p>
+            <p style="color: #555; line-height: 1.6;">Please click the button below to verify your email address and activate your account:</p>
+            <div style="margin: 25px 0;">
+              <a href="${verificationLink}" style="background: #5b67f7; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Verify Email</a>
+            </div>
+            <p style="color: #888; font-size: 14px; line-height: 1.6;">If you didn't create an account, you can safely ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 25px 0;">
+            <p style="color: #aaa; font-size: 12px;">NHCE Cybersecurity Club</p>
+          </div>
+        </div>
+      `,
+      attachments: [{
+        filename: 'cseh_final_logo.png',
+        path: logoPath,
+        cid: 'logo'
+      }]
+    });
+
     res.json({
       success: true,
+      message: 'Account created! Please check your email to verify your account before logging in.',
       user: {
         username: user.username,
-        email: user.email,
-        teamId: user.teamId,
-        solvedChallenges: user.solvedChallenges
+        email: user.email
       }
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify Email Endpoint
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined; // Clear the token
+    await user.save();
+
+    res.json({ success: true, message: 'Email verified successfully! You can now log in.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -293,6 +360,11 @@ app.post('/api/auth/login', async (req, res) => {
     // Check if banned
     if (user.banned) {
       return res.status(403).json({ error: 'This account has been banned for violating the rules.' });
+    }
+
+    // Check if verified
+    if (user.isVerified === false) {
+      return res.status(403).json({ error: 'Please verify your email address before logging in. Check your inbox.' });
     }
 
     // Check password
@@ -353,6 +425,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
 
     // Save token to user
     user.resetToken = resetToken;
@@ -367,6 +440,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
           <div style="background: white; padding: 30px; border-left: 4px solid #5b67f7;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <img src="cid:logo" alt="NHCE Cyber Club" style="max-width: 150px; height: auto;">
+            </div>
             <h2 style="color: #333; margin-top: 0;">Password Reset</h2>
             <p style="color: #555; line-height: 1.6;">You requested a password reset for Cache Me If You Can - Round 2.</p>
             <p style="color: #555; line-height: 1.6;">Click the button below to set a new password:</p>
@@ -380,7 +456,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           </div>
           <p style="color: #888; font-size: 12px; text-align: center; margin-top: 15px;">Check spam if you don't see this.</p>
         </div>
-      `
+      `,
+      attachments: [{
+        filename: 'cseh_final_logo.png',
+        path: logoPath,
+        cid: 'logo'
+      }]
     });
 
     res.json({ success: true, message: 'Password reset email sent successfully!' });
@@ -434,11 +515,35 @@ app.post('/api/auth/forgot-admin-password', async (req, res) => {
       },
     });
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}&admin=true`;
+    const logoPath = path.join(__dirname, '../src/assets/cseh_final_logo.png');
+    
     const mailOptions = {
       to: admin.email,
       from: process.env.EMAIL_USER,
       subject: 'Admin Password Reset',
-      html: `<p>You requested a password reset for your admin account.</p><p>Click <a href="${resetUrl}">here</a> to reset your password. This link will expire in 1 hour.</p>`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+          <div style="background: white; padding: 30px; border-left: 4px solid #5b67f7;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <img src="cid:logo" alt="NHCE Cyber Club" style="max-width: 150px; height: auto;">
+            </div>
+            <h2 style="color: #333; margin-top: 0;">Admin Password Reset</h2>
+            <p style="color: #555; line-height: 1.6;">You requested a password reset for your admin account.</p>
+            <p style="color: #555; line-height: 1.6;">Click the button below to reset your password:</p>
+            <div style="margin: 25px 0;">
+              <a href="${resetUrl}" style="background: #5b67f7; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a>
+            </div>
+            <p style="color: #888; font-size: 14px; line-height: 1.6;">This link expires in 1 hour.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 25px 0;">
+            <p style="color: #aaa; font-size: 12px;">NHCE Cybersecurity Club</p>
+          </div>
+        </div>
+      `,
+      attachments: [{
+        filename: 'cseh_final_logo.png',
+        path: logoPath,
+        cid: 'logo'
+      }]
     };
     await transporter.sendMail(mailOptions);
     res.json({ message: 'Password reset email sent to admin.' });

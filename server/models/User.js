@@ -40,6 +40,14 @@ const userSchema = new mongoose.Schema({
   banned: {
     type: Boolean,
     default: false
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationToken: {
+    type: String,
+    default: null
   }
 });
 

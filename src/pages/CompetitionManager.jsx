@@ -27,7 +27,13 @@ const CompetitionManager = () => {
 
   const fetchCompetition = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/competition`);
+      const adminUsername = localStorage.getItem('currentAdminUsername');
+      const response = await fetch(`${API_URL}/admin/competition`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-username': adminUsername || 'admin'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch competition');
       }

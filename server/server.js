@@ -958,6 +958,11 @@ app.delete('/api/teams/:code', async (req, res) => {
       { teamId: null }
     );
 
+    await logAction('DELETE_TEAM', 'admin', 'admin', `Deleted team: ${team.name} (${req.params.code})`, req);
+    
+    // Broadcast to all connected clients - force affected users to refresh
+    io.emit('team:deleted', { teamCode: req.params.code, teamName: team.name });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1103,6 +1108,18 @@ app.post('/api/challenges/submit', async (req, res) => {
       await team.save();
     }
 
+    // Broadcast solve to all connected clients (real-time leaderboard update)
+    io.emit('solve:success', {
+      teamCode: teamCode,
+      teamName: team ? team.name : username,
+      challengeId: challenge.id,
+      challengeTitle: challenge.title,
+      points: challenge.points,
+      isFirstBlood: isFirstBlood,
+      solvedBy: username,
+      newTeamScore: team ? team.score : 0
+    });
+
     res.json({ 
       success: true, 
       message: isFirstBlood ? '🎉 First Blood! Challenge solved!' : 'Challenge solved successfully',
@@ -1196,7 +1213,10 @@ app.delete('/api/challenges/:id', authenticateAdmin, async (req, res) => {
     
     await Challenge.findOneAndDelete({ id: req.params.id });
     
-    await logAction('DELETE_CHALLENGE', 'admin', 'admin', `Deleted challenge: ${req.params.id}`, req);
+    await logAction('DELETE_CHALLENGE', 'admin', 'admin', `Deleted challenge: ${challenge.title} (${req.params.id})`, req);
+    
+    // Broadcast to all connected clients
+    io.emit('challenge:deleted', { challengeId: req.params.id });
     
     res.json({ success: true });
   } catch (error) {
@@ -1397,6 +1417,14 @@ app.patch('/api/admin/users/:id/ban', authenticateAdmin, async (req, res) => {
     
     await logAction(user.banned ? 'BAN_USER' : 'UNBAN_USER', 'admin', 'admin', `${user.banned ? 'Banned' : 'Unbanned'} user ${user.username}`, req);
 
+    // Broadcast to all clients - force logout banned user
+    if (user.banned) {
+      io.emit('user:banned', { 
+        userId: user._id.toString(), 
+        username: user.username 
+      });
+    }
+
     res.json({ 
       success: true, 
       message: `User ${user.banned ? 'banned' : 'unbanned'} successfully`,
@@ -1435,6 +1463,12 @@ app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
     await User.findByIdAndDelete(req.params.id);
     
     await logAction('DELETE_USER', 'admin', 'admin', `Deleted user ${user.username}`, req);
+
+    // Broadcast to all connected clients - force user to logout
+    io.emit('user:deleted', { 
+      userId: user._id.toString(), 
+      username: user.username 
+    });
 
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
@@ -2177,6 +2211,9 @@ app.delete('/api/admin/announcements/:id', authenticateAdmin, async (req, res) =
     }
 
     await logAction('DELETE_ANNOUNCEMENT', 'admin', 'admin', `Deleted announcement: ${req.params.id}`, req);
+
+    // Broadcast to all connected clients
+    io.emit('announcement:deleted', { announcementId: req.params.id });
 
     res.json({ success: true, message: 'Announcement deleted' });
   } catch (error) {

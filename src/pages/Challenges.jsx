@@ -246,6 +246,39 @@ function Challenges() {
       }
     });
 
+    // User banned - force logout if current user
+    socket.on('user:banned', ({ username }) => {
+      if (currentUser === username) {
+        showMessage('Your account has been banned by an administrator', 'error');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      }
+    });
+
+    // User deleted - force logout if current user
+    socket.on('user:deleted', ({ username }) => {
+      if (currentUser === username) {
+        showMessage('Your account has been deleted by an administrator', 'error');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      }
+    });
+
+    // Solve success - update team data
+    socket.on('solve:success', async ({ teamCode }) => {
+      if (teamData?.code === teamCode) {
+        // Refresh team data to show updated score
+        try {
+          const updatedTeam = await getTeam(teamCode);
+          setTeamData(updatedTeam);
+        } catch (error) {
+          console.error('Error updating team data:', error);
+        }
+      }
+    });
+
     // Cleanup listeners
     return () => {
       socket.off('challenge:created');
@@ -256,8 +289,11 @@ function Challenges() {
       socket.off('competition:updated');
       socket.off('competition:status');
       socket.off('announcement:created');
+      socket.off('user:banned');
+      socket.off('user:deleted');
+      socket.off('solve:success');
     };
-  }, [socket, currentChallenge, shownAnnouncements])
+  }, [socket, currentChallenge, shownAnnouncements, currentUser, teamData])
 
   const fetchCompetition = async () => {
     try {

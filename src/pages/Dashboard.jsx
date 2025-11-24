@@ -128,14 +128,36 @@ function Dashboard() {
       }
     });
 
+    // User banned - force logout if current user
+    socket.on('user:banned', ({ username }) => {
+      if (currentUser === username) {
+        showMessage('Your account has been banned by an administrator', 'error');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      }
+    });
+
+    // User deleted - force logout if current user
+    socket.on('user:deleted', ({ username }) => {
+      if (currentUser === username) {
+        showMessage('Your account has been deleted by an administrator', 'error');
+        setTimeout(() => {
+          logout();
+        }, 2000);
+      }
+    });
+
     // Cleanup listeners
     return () => {
       socket.off('team:deleted');
       socket.off('competition:updated');
       socket.off('competition:status');
       socket.off('announcement:created');
+      socket.off('user:banned');
+      socket.off('user:deleted');
     };
-  }, [socket, teamData, shownAnnouncements])
+  }, [socket, teamData, shownAnnouncements, currentUser])
 
   const fetchCompetition = async () => {
     try {

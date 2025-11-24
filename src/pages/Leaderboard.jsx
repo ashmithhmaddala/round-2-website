@@ -124,11 +124,17 @@ function Leaderboard() {
       }
     });
 
+    // Solve success - refresh leaderboard
+    socket.on('solve:success', () => {
+      fetchLeaderboard(); // Refresh to show updated scores
+    });
+
     // Cleanup listeners
     return () => {
       socket.off('competition:updated');
       socket.off('competition:status');
       socket.off('announcement:created');
+      socket.off('solve:success');
     };
   }, [socket, shownAnnouncements])
 

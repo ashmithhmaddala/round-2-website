@@ -952,7 +952,7 @@ app.post('/api/teams/join', async (req, res) => {
       });
     }
 
-    // Check team size limit before adding
+    // Check team size limit before adding new member
     if (team.members.length >= MAX_TEAM_SIZE) {
       return res.status(400).json({ 
         error: `Team is full. Maximum ${MAX_TEAM_SIZE} members allowed per team.` 

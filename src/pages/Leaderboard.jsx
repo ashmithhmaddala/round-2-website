@@ -98,9 +98,6 @@ function Leaderboard() {
     // Competition status changed
     socket.on('competition:status', ({ status, competition }) => {
       setCompetition(competition);
-      
-      // Competition status changed - handled by UI updates
-      
       // Re-fetch teams to update leaderboard
       fetchLeaderboard();
     });

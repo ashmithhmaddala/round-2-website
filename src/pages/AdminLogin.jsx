@@ -13,8 +13,27 @@ function AdminLogin() {
 
   // Redirect if already logged in as admin
   useEffect(() => {
-    if (isAdminAuthenticated()) {
-      navigate('/admin', { replace: true })
+    const checkAuth = () => {
+      if (isAdminAuthenticated()) {
+        navigate('/admin', { replace: true })
+      }
+    }
+    
+    checkAuth()
+    
+    // Check again when page becomes visible (handles back button)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAuth()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', checkAuth)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', checkAuth)
     }
   }, [navigate])
 
@@ -31,7 +50,7 @@ function AdminLogin() {
       setAdminAuth(true)
       localStorage.setItem('currentAdminUsername', result.admin.username)
       localStorage.setItem('currentAdminRole', result.admin.role)
-      navigate('/admin')
+      navigate('/admin', { replace: true })
     } catch (err) {
       setError('Invalid credentials. Access denied.')
     } finally {

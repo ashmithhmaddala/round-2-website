@@ -20,9 +20,28 @@ function Login() {
 
   // Redirect if already logged in
   useEffect(() => {
-    const username = getCurrentUser()
-    if (username) {
-      navigate('/dashboard', { replace: true })
+    const checkAuth = () => {
+      const username = getCurrentUser()
+      if (username) {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+    
+    checkAuth()
+    
+    // Check again when page becomes visible (handles back button)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAuth()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', checkAuth)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', checkAuth)
     }
   }, [navigate])
 

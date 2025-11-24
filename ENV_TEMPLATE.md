@@ -12,6 +12,10 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ctf-database
 PORT=5000
 NODE_ENV=production
 
+# JWT Secret (for admin authentication)
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=your-long-random-secret-key-at-least-32-characters-long
+
 # Email Configuration (Gmail)
 # Generate app password: https://myaccount.google.com/apppasswords
 EMAIL_USER=your-email@gmail.com

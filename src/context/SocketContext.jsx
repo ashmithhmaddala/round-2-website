@@ -20,8 +20,14 @@ export const SocketProvider = ({ children }) => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const socketURL = API_URL.replace('/api', ''); // Remove /api suffix for socket connection
 
-    // Initialize socket connection
+    // Get JWT token for authentication
+    const adminToken = localStorage.getItem('adminToken');
+    
+    // Initialize socket connection with JWT auth
     const socketInstance = io(socketURL, {
+      auth: {
+        token: adminToken || null
+      },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,

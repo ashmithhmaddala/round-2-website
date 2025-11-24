@@ -6,6 +6,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
+import { body, validationResult } from 'express-validator';
 import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
@@ -65,13 +68,48 @@ const io = new Server(httpServer, {
 
 app.set('trust proxy', 1); // Trust first proxy (required for Vercel/Heroku to get real IP)
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-' + crypto.randomBytes(32).toString('hex');
+const JWT_EXPIRES_IN = '8h'; // Admin session expires after 8 hours
+const MAX_TEAM_SIZE = 3; // Maximum members per team
 
-// Socket.io connection handling
+// Socket.io connection handling with authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  // Allow connection even without token (for public users)
+  // We'll send different events based on user type
+  if (!token) {
+    socket.isAdmin = false;
+    socket.isUser = true;
+    return next();
+  }
+  
+  // Verify JWT token for authenticated users/admins
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    socket.userId = decoded.userId;
+    socket.username = decoded.username;
+    socket.isAdmin = decoded.isAdmin || false;
+    socket.isUser = !decoded.isAdmin;
+    next();
+  } catch (error) {
+    // Token invalid but still allow connection as public user
+    socket.isAdmin = false;
+    socket.isUser = true;
+    next();
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log('✅ Client connected:', socket.id);
+  // Only log in development
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ Client connected:', socket.id, socket.isAdmin ? '(Admin)' : '(User)');
+  }
   
   socket.on('disconnect', () => {
-    console.log('❌ Client disconnected:', socket.id);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('❌ Client disconnected:', socket.id);
+    }
   });
 });
 
@@ -110,7 +148,10 @@ const logAction = async (action, actor, role, details, req) => {
       ipAddress
     });
   } catch (error) {
-    console.error('Logging failed:', error);
+    // Silently fail logging to prevent infinite loops
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Logging failed:', error);
+    }
   }
 };
 
@@ -153,6 +194,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' })); // Prevent huge payloads
+app.use(cookieParser()); // Parse cookies for JWT
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {
@@ -209,28 +251,40 @@ app.use('/api/auth/forgot-admin-password', passwordResetLimiter);
 
 // ==================== MIDDLEWARE ====================
 
-// Admin Authentication Middleware
+// Admin Authentication Middleware using JWT
 const authenticateAdmin = async (req, res, next) => {
   try {
-    const adminUsername = req.headers['x-admin-username'];
+    // Check for JWT token in Authorization header or cookie
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies.adminToken;
     
-    if (!adminUsername) {
-      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', 'Attempted admin access without authentication', req);
+    if (!token) {
+      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', 'No JWT token provided', req);
       return res.status(401).json({ error: 'Admin authentication required' });
     }
     
-    // Verify admin exists and is valid
-    const admin = await Admin.findOne({ username: adminUsername });
-    if (!admin) {
-      await logAction('ADMIN_ACCESS_DENIED', adminUsername, 'admin', 'Invalid admin username in header', req);
-      return res.status(401).json({ error: 'Invalid admin credentials' });
+    // Verify JWT token
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Token is valid, get admin from database
+      const admin = await Admin.findById(decoded.adminId);
+      if (!admin) {
+        await logAction('ADMIN_ACCESS_DENIED', decoded.username, 'admin', 'Admin not found for valid token', req);
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+      
+      // Attach admin info to request
+      req.admin = admin;
+      req.adminId = admin._id;
+      next();
+    } catch (jwtError) {
+      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', `Invalid JWT token: ${jwtError.message}`, req);
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    
-    // Attach admin info to request for use in routes
-    req.admin = admin;
-    next();
   } catch (error) {
-    console.error('Admin authentication error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Admin authentication error:', error);
+    }
     res.status(500).json({ error: 'Authentication error' });
   }
 };
@@ -256,6 +310,7 @@ const requireSuperAdmin = async (req, res, next) => {
 
 // Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'EMAIL_USER', 'EMAIL_PASS', 'ADMIN_PASSWORD', 'FRONTEND_URL'];
+const optionalEnvVars = ['JWT_SECRET']; // Will be auto-generated if missing
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -268,14 +323,19 @@ if (missingEnvVars.length > 0) {
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('✅ Connected to MongoDB Atlas');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Connected to MongoDB Atlas');
+    }
     
     // Initialize GridFS bucket
     const db = mongoose.connection.db;
     gfsBucket = new GridFSBucket(db, {
       bucketName: 'challengeFiles'
     });
-    console.log('✅ GridFS bucket initialized');
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ GridFS bucket initialized');
+    }
     
     initializeDefaultChallenges();
     initializeSuperAdmin();
@@ -315,7 +375,9 @@ async function initializeSuperAdmin() {
       role: 'super_admin'
     });
     await superAdmin.save();
-    console.log('✅ Super admin initialized');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Super admin initialized');
+    }
   }
 }
 
@@ -332,7 +394,9 @@ async function initializeCompetition() {
       status: 'upcoming'
     });
     await competition.save();
-    console.log('✅ Competition settings initialized');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Competition settings initialized');
+    }
   }
 }
 
@@ -434,7 +498,9 @@ async function initializeDefaultChallenges() {
     }));
 
     await Challenge.insertMany(challengesWithHash);
-    console.log('✅ Default challenges initialized');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Default challenges initialized');
+    }
   }
 }
 
@@ -672,7 +738,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     res.json({ success: true, message: 'Password reset email sent successfully!' });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    await logAction('ERROR', 'system', 'system', `Forgot password error: ${error.message}`, req);
     res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
   }
 });
@@ -873,6 +939,21 @@ app.post('/api/teams/join', async (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
 
+    // Check team size limit
+    const MAX_TEAM_SIZE = 3; // Maximum 3 members per team
+    if (team.members.length >= MAX_TEAM_SIZE && !team.members.includes(username)) {
+      return res.status(400).json({ 
+        error: `Team is full (maximum ${MAX_TEAM_SIZE} members allowed)` 
+      });
+    }
+
+    // Check team size limit BEFORE checking membership
+    if (team.members.length >= MAX_TEAM_SIZE && !team.members.includes(username)) {
+      return res.status(400).json({ 
+        error: `Team is full. Maximum ${MAX_TEAM_SIZE} members allowed per team.` 
+      });
+    }
+
     // Check if already member
     if (team.members.includes(username)) {
       return res.json({
@@ -884,11 +965,6 @@ app.post('/api/teams/join', async (req, res) => {
           score: team.score
         }
       });
-    }
-
-    // Check team size limit
-    if (team.members.length >= 3) {
-      return res.status(400).json({ error: 'Team is full (max 3 members)' });
     }
 
     // Add member
@@ -1206,12 +1282,30 @@ app.post('/api/challenges', authenticateAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Flag is required' });
     }
 
+    // Validate flag format (should be CTF{...})
+    if (!flag.startsWith('CTF{') || !flag.endsWith('}')) {
+      return res.status(400).json({ 
+        error: 'Flag must be in format CTF{...}',
+        example: 'CTF{example_flag_here}'
+      });
+    }
+
+    // Validate flag length
+    if (flag.length < 10 || flag.length > 200) {
+      return res.status(400).json({ error: 'Flag must be between 10 and 200 characters' });
+    }
+
     // Check for other required fields
     const requiredFields = ['id', 'title', 'description', 'category', 'difficulty', 'points'];
     for (const field of requiredFields) {
       if (!rest[field]) {
         return res.status(400).json({ error: `${field} is required` });
       }
+    }
+
+    // Validate points range
+    if (rest.points < 1 || rest.points > 10000) {
+      return res.status(400).json({ error: 'Points must be between 1 and 10000' });
     }
 
     const flagHash = await bcrypt.hash(flag, 12);
@@ -1225,7 +1319,6 @@ app.post('/api/challenges', authenticateAdmin, async (req, res) => {
     
     res.json({ success: true, challenge });
   } catch (error) {
-    console.error('Create challenge error:', error);
     await logAction('ERROR', 'system', 'system', `Create challenge error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
@@ -1256,7 +1349,6 @@ app.put('/api/challenges/:id', authenticateAdmin, async (req, res) => {
     
     res.json({ success: true, challenge });
   } catch (error) {
-    console.error('Update challenge error:', error);
     await logAction('ERROR', 'system', 'system', `Update challenge error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
@@ -1272,7 +1364,10 @@ app.delete('/api/challenges/:id', authenticateAdmin, async (req, res) => {
         try {
           await gfsBucket.delete(file.gridFsId);
         } catch (err) {
-          console.error('Error deleting file from GridFS:', err);
+          // Silently log GridFS errors to prevent cascade failures
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Error deleting file from GridFS:', err);
+          }
         }
       }
     }
@@ -1294,13 +1389,40 @@ app.delete('/api/challenges/:id', authenticateAdmin, async (req, res) => {
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
+
+// Allowed MIME types for uploads
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'application/pdf',
+  'text/plain', 'text/html', 'text/css', 'text/javascript',
+  'application/json', 'application/xml',
+  'application/zip', 'application/x-zip-compressed',
+  'application/x-7z-compressed', 'application/x-rar-compressed',
+  'application/gzip', 'application/x-tar',
+  'audio/mpeg', 'audio/wav', 'audio/ogg',
+  'video/mp4', 'video/webm', 'video/ogg',
+  'application/octet-stream' // For binary files
+];
+
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+    files: 10 // Max 10 files per request
   },
   fileFilter: (req, file, cb) => {
-    // Allow all file types for CTF challenges
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      return cb(new Error(`File type ${file.mimetype} not allowed. Allowed types: images, documents, archives, audio, video`));
+    }
+    
+    // Validate filename
+    const filename = file.originalname.toLowerCase();
+    const dangerousExtensions = ['.exe', '.bat', '.cmd', '.sh', '.ps1', '.vbs', '.jar', '.app', '.deb', '.rpm'];
+    if (dangerousExtensions.some(ext => filename.endsWith(ext))) {
+      return cb(new Error('Executable files are not allowed'));
+    }
+    
     cb(null, true);
   }
 });
@@ -1367,7 +1489,7 @@ app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), 
       file: fileMetadata
     });
   } catch (error) {
-    console.error('File upload error:', error);
+    await logAction('ERROR', 'system', 'system', `File upload error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1402,7 +1524,8 @@ app.get('/api/challenges/:id/files/:filename', async (req, res) => {
 
     // Handle stream errors
     downloadStream.on('error', (error) => {
-      console.error('Download stream error:', error);
+      // Log download errors (non-blocking)
+      logAction('ERROR', 'system', 'system', `File download stream error: ${error.message}`).catch(() => {});
       if (!res.headersSent) {
         res.status(404).json({ error: 'File not found in storage' });
       }
@@ -1411,7 +1534,7 @@ app.get('/api/challenges/:id/files/:filename', async (req, res) => {
     // Pipe the file to response
     downloadStream.pipe(res);
   } catch (error) {
-    console.error('File download error:', error);
+    logAction('ERROR', 'system', 'system', `File download error: ${error.message}`).catch(() => {});
     if (!res.headersSent) {
       res.status(500).json({ error: error.message });
     }
@@ -1437,7 +1560,10 @@ app.delete('/api/challenges/:id/files/:filename', authenticateAdmin, async (req,
         await gfsBucket.delete(fileMetadata.gridFsId);
       }
     } catch (err) {
-      console.error('Error deleting from GridFS:', err);
+          // Silently log to prevent cascade failures
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Error deleting from GridFS:', err);
+          }
     }
 
     // Remove from challenge (using updateOne to avoid validation issues)
@@ -1453,7 +1579,7 @@ app.delete('/api/challenges/:id/files/:filename', authenticateAdmin, async (req,
       message: 'File deleted successfully'
     });
   } catch (error) {
-    console.error('File delete error:', error);
+    await logAction('ERROR', 'system', 'system', `File delete error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1591,8 +1717,29 @@ app.post('/api/admin/login', async (req, res) => {
     
     await logAction('ADMIN_LOGIN', admin.username, 'admin', 'Admin logged in successfully', req);
     
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        adminId: admin._id,
+        username: admin.username,
+        role: admin.role,
+        isAdmin: true
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+    
+    // Set httpOnly cookie for security
+    res.cookie('adminToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000 // 8 hours
+    });
+    
     res.json({ 
       success: true,
+      token, // Also send token for Authorization header
       admin: {
         username: admin.username,
         email: admin.email,
@@ -2487,10 +2634,40 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'CTF API is running' });
 });
 
+// Global error handler (must be last)
+app.use(async (error, req, res, next) => {
+  // Log error for debugging
+  try {
+    await logAction('ERROR', 'system', 'system', `Unhandled error: ${error.message}`, req);
+  } catch (logError) {
+    // Ignore logging errors
+  }
+  
+  // Don't expose internal errors in production
+  if (process.env.NODE_ENV === 'production') {
+    res.status(error.status || 500).json({ 
+      error: 'An internal error occurred. Please try again later.' 
+    });
+  } else {
+    res.status(error.status || 500).json({ 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Admin logout endpoint
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('adminToken');
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
 // Start server
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🔌 Socket.IO ready for real-time connections`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔌 Socket.IO ready for real-time connections`);
+  }
 });
 
 // Graceful shutdown handler

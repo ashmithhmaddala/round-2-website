@@ -107,7 +107,7 @@ function Leaderboard() {
       }
       
       // Re-fetch teams to update leaderboard
-      fetchTeams();
+      fetchLeaderboard();
     });
 
     // New announcement

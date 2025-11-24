@@ -1,12 +1,12 @@
 // API Base URL - uses environment variable for flexibility
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Helper to get admin headers
+// Helper to get admin headers with JWT
 const getAdminHeaders = () => {
-  const username = localStorage.getItem('currentAdminUsername');
+  const token = localStorage.getItem('adminToken');
   return {
     'Content-Type': 'application/json',
-    'x-admin-username': username || 'admin'
+    'Authorization': token ? `Bearer ${token}` : ''
   };
 };
 
@@ -198,6 +198,12 @@ export const adminLogin = async (username, password) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
+  
+  // Store JWT token
+  if (data.token) {
+    localStorage.setItem('adminToken', data.token);
+  }
+  
   return data;
 };
 
@@ -464,6 +470,9 @@ export const logout = () => {
   localStorage.removeItem('currentUser');
   localStorage.removeItem('adminAuth');
   localStorage.removeItem('adminAuthTime');
+  localStorage.removeItem('adminToken'); // Remove JWT token
+  localStorage.removeItem('currentAdminUsername');
+  localStorage.removeItem('currentAdminRole');
   window.location.href = '/';
 };
 

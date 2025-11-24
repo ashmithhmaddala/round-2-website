@@ -10,11 +10,11 @@ const LoggingAndMonitoring = () => {
 
   const fetchLogs = async () => {
     try {
-      const adminUsername = localStorage.getItem('currentAdminUsername');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/logs`, {
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-username': adminUsername || 'admin'
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       
@@ -37,7 +37,8 @@ const LoggingAndMonitoring = () => {
 
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(fetchLogs, 5000); // Auto-refresh every 5s
+    // Reduced polling with socket.io handling real-time updates
+    const interval = setInterval(fetchLogs, 30000); // Reduced to 30s
     return () => clearInterval(interval);
   }, []);
 

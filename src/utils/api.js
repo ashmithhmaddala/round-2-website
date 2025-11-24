@@ -156,10 +156,10 @@ export const uploadChallengeFile = async (challengeId, file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  const username = localStorage.getItem('currentAdminUsername');
+  const token = localStorage.getItem('adminToken');
   const headers = {};
-  if (username) {
-    headers['x-admin-username'] = username;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_URL}/challenges/${challengeId}/files`, {

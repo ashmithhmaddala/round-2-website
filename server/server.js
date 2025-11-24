@@ -939,22 +939,7 @@ app.post('/api/teams/join', async (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Check team size limit
-    const MAX_TEAM_SIZE = 3; // Maximum 3 members per team
-    if (team.members.length >= MAX_TEAM_SIZE && !team.members.includes(username)) {
-      return res.status(400).json({ 
-        error: `Team is full (maximum ${MAX_TEAM_SIZE} members allowed)` 
-      });
-    }
-
-    // Check team size limit BEFORE checking membership
-    if (team.members.length >= MAX_TEAM_SIZE && !team.members.includes(username)) {
-      return res.status(400).json({ 
-        error: `Team is full. Maximum ${MAX_TEAM_SIZE} members allowed per team.` 
-      });
-    }
-
-    // Check if already member
+    // Check if already member first
     if (team.members.includes(username)) {
       return res.json({
         success: true,
@@ -964,6 +949,13 @@ app.post('/api/teams/join', async (req, res) => {
           members: team.members,
           score: team.score
         }
+      });
+    }
+
+    // Check team size limit before adding
+    if (team.members.length >= MAX_TEAM_SIZE) {
+      return res.status(400).json({ 
+        error: `Team is full. Maximum ${MAX_TEAM_SIZE} members allowed per team.` 
       });
     }
 

@@ -99,12 +99,7 @@ function Leaderboard() {
     socket.on('competition:status', ({ status, competition }) => {
       setCompetition(competition);
       
-      if (status === 'frozen') {
-        // Show frozen message or hide scoreboard
-        console.log('Competition frozen');
-      } else if (status === 'ended') {
-        console.log('Competition ended');
-      }
+      // Competition status changed - handled by UI updates
       
       // Re-fetch teams to update leaderboard
       fetchLeaderboard();

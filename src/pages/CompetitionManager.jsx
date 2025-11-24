@@ -27,11 +27,11 @@ const CompetitionManager = () => {
 
   const fetchCompetition = async () => {
     try {
-      const adminUsername = localStorage.getItem('currentAdminUsername');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/competition`, {
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-username': adminUsername || 'admin'
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       if (!response.ok) {
@@ -92,11 +92,12 @@ const CompetitionManager = () => {
     };
 
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/competition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
+          'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify(submitData),
       });
@@ -128,11 +129,12 @@ const CompetitionManager = () => {
     }
 
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/competition/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-username': localStorage.getItem('currentAdminUsername') || 'admin'
+          'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify({ status: newStatus }),
       });

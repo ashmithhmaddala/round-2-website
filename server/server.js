@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -29,8 +31,52 @@ import { startEmailWorker } from './utils/emailWorker.js';
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Allow any Vercel deployment
+      if (origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      
+      const allowedOrigins = [
+        'https://nhceosintcrypto.online',
+        'https://www.nhceosintcrypto.online',
+        'http://nhceosintcrypto.online',
+        'http://www.nhceosintcrypto.online',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175'
+      ];
+      
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  }
+});
+
 app.set('trust proxy', 1); // Trust first proxy (required for Vercel/Heroku to get real IP)
 const PORT = process.env.PORT || 5000;
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('✅ Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('❌ Client disconnected:', socket.id);
+  });
+});
+
+// Export io for use in routes
+export { io };
 
 // Helper function for logging
 const logAction = async (action, actor, role, details, req) => {
@@ -1091,6 +1137,9 @@ app.post('/api/challenges', authenticateAdmin, async (req, res) => {
     
     await logAction('CREATE_CHALLENGE', 'admin', 'admin', `Created challenge: ${challenge.title} (${challenge.id})`, req);
     
+    // Broadcast to all connected clients
+    io.emit('challenge:created', { challenge });
+    
     res.json({ success: true, challenge });
   } catch (error) {
     console.error('Create challenge error:', error);
@@ -1118,6 +1167,9 @@ app.put('/api/challenges/:id', authenticateAdmin, async (req, res) => {
     }
     
     await logAction('UPDATE_CHALLENGE', 'admin', 'admin', `Updated challenge: ${challenge.title} (${challenge.id})`, req);
+    
+    // Broadcast to all connected clients
+    io.emit('challenge:updated', { challenge });
     
     res.json({ success: true, challenge });
   } catch (error) {
@@ -1930,6 +1982,9 @@ app.patch('/api/admin/challenges/:id/toggle-visibility', authenticateAdmin, asyn
 
     await logAction('TOGGLE_CHALLENGE_VISIBILITY', 'admin', 'admin', `Toggled visibility for challenge ${req.params.id} to ${newVisibility}`, req);
 
+    // Broadcast to all connected clients
+    io.emit('challenge:visibility', { challengeId: req.params.id, visible: newVisibility });
+
     res.json({ 
       success: true, 
       message: `Challenge ${newVisibility ? 'shown' : 'hidden'}`,
@@ -1959,6 +2014,9 @@ app.patch('/api/admin/challenges/:id/toggle-disabled', authenticateAdmin, async 
     );
 
     await logAction('TOGGLE_CHALLENGE_DISABLED', 'admin', 'admin', `Toggled disabled status for challenge ${req.params.id} to ${newDisabledStatus}`, req);
+
+    // Broadcast to all connected clients
+    io.emit('challenge:disabled', { challengeId: req.params.id, disabled: newDisabledStatus });
 
     res.json({ 
       success: true, 
@@ -2066,6 +2124,9 @@ app.post('/api/admin/announcements', authenticateAdmin, async (req, res) => {
     await announcement.save();
     
     await logAction('CREATE_ANNOUNCEMENT', 'admin', 'admin', `Created announcement: ${announcement.title}`, req);
+    
+    // Broadcast to all connected clients
+    io.emit('announcement:created', { announcement });
     
     res.json({ success: true, announcement });
   } catch (error) {
@@ -2273,6 +2334,9 @@ app.put('/api/admin/competition', authenticateAdmin, async (req, res) => {
 
     await logAction('UPDATE_COMPETITION', 'admin', 'admin', 'Updated competition settings', req);
 
+    // Broadcast to all connected clients
+    io.emit('competition:updated', { competition });
+
     res.json({ 
       success: true, 
       message: 'Competition settings updated',
@@ -2302,6 +2366,9 @@ app.put('/api/admin/competition/status', authenticateAdmin, async (req, res) => 
 
     await logAction('UPDATE_COMPETITION_STATUS', 'admin', 'admin', `Updated competition status to ${status}`, req);
 
+    // Broadcast to all connected clients
+    io.emit('competition:status', { status, competition });
+
     res.json({ 
       success: true, 
       message: `Competition status updated to ${status}`,
@@ -2318,6 +2385,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🔌 Socket.IO ready for real-time connections`);
 });

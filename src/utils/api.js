@@ -488,6 +488,9 @@ export const getAdminAuth = () => {
   }
 };
 
+// Alias for getAdminAuth for backward compatibility
+export const isAdminAuthenticated = () => getAdminAuth();
+
 // Set up activity listeners to track user activity
 if (typeof window !== 'undefined') {
   const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];

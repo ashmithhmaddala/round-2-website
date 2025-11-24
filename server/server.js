@@ -130,6 +130,53 @@ app.use('/api/challenges/submit', flagLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
 app.use('/api/auth/forgot-admin-password', passwordResetLimiter);
 
+// ==================== MIDDLEWARE ====================
+
+// Admin Authentication Middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const adminUsername = req.headers['x-admin-username'];
+    
+    if (!adminUsername) {
+      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', 'Attempted admin access without authentication', req);
+      return res.status(401).json({ error: 'Admin authentication required' });
+    }
+    
+    // Verify admin exists and is valid
+    const admin = await Admin.findOne({ username: adminUsername });
+    if (!admin) {
+      await logAction('ADMIN_ACCESS_DENIED', adminUsername, 'admin', 'Invalid admin username in header', req);
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+    
+    // Attach admin info to request for use in routes
+    req.admin = admin;
+    next();
+  } catch (error) {
+    console.error('Admin authentication error:', error);
+    res.status(500).json({ error: 'Authentication error' });
+  }
+};
+
+// Super Admin Only Middleware
+const requireSuperAdmin = async (req, res, next) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({ error: 'Admin authentication required' });
+    }
+    
+    if (req.admin.role !== 'super_admin') {
+      await logAction('SUPER_ADMIN_ACCESS_DENIED', req.admin.username, 'admin', 'Attempted super admin action without permission', req);
+      return res.status(403).json({ error: 'Super admin access required' });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Super admin check error:', error);
+    res.status(500).json({ error: 'Authorization error' });
+  }
+};
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -1274,51 +1321,6 @@ app.delete('/api/challenges/:id/files/:filename', authenticateAdmin, async (req,
 });
 
 // ==================== ADMIN ROUTES ====================
-
-// Admin Authentication Middleware
-const authenticateAdmin = async (req, res, next) => {
-  try {
-    const adminUsername = req.headers['x-admin-username'];
-    
-    if (!adminUsername) {
-      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', 'Attempted admin access without authentication', req);
-      return res.status(401).json({ error: 'Admin authentication required' });
-    }
-    
-    // Verify admin exists and is valid
-    const admin = await Admin.findOne({ username: adminUsername });
-    if (!admin) {
-      await logAction('ADMIN_ACCESS_DENIED', adminUsername, 'admin', 'Invalid admin username in header', req);
-      return res.status(401).json({ error: 'Invalid admin credentials' });
-    }
-    
-    // Attach admin info to request for use in routes
-    req.admin = admin;
-    next();
-  } catch (error) {
-    console.error('Admin authentication error:', error);
-    res.status(500).json({ error: 'Authentication error' });
-  }
-};
-
-// Super Admin Only Middleware
-const requireSuperAdmin = async (req, res, next) => {
-  try {
-    if (!req.admin) {
-      return res.status(401).json({ error: 'Admin authentication required' });
-    }
-    
-    if (req.admin.role !== 'super_admin') {
-      await logAction('SUPER_ADMIN_ACCESS_DENIED', req.admin.username, 'admin', 'Attempted super admin action without permission', req);
-      return res.status(403).json({ error: 'Super admin access required' });
-    }
-    
-    next();
-  } catch (error) {
-    console.error('Super admin check error:', error);
-    res.status(500).json({ error: 'Authorization error' });
-  }
-};
 
 // Get all users (admin)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {

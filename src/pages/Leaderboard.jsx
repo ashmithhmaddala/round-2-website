@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaClock, FaUsers, FaFire, FaMedal, FaChartLine, FaBell, FaSignOutAlt, FaHome, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSnowflake } from 'react-icons/fa'
 import { LuTrophy } from "react-icons/lu";
 import { getCurrentUser, logout, API_URL } from '../utils/api'
+import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import '../pages/Dashboard.css'
 import './Leaderboard.css'
@@ -20,6 +21,7 @@ function Leaderboard() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [viewMode, setViewMode] = useState('table') // 'table' or 'chart'
   const navigate = useNavigate()
+  const { socket } = useSocket()
 
   useEffect(() => {
     const username = getCurrentUser()
@@ -87,6 +89,48 @@ function Leaderboard() {
     const interval = setInterval(fetchAnnouncements, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  // Socket.io listeners for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Competition updated
+    socket.on('competition:updated', ({ competition }) => {
+      setCompetition(competition);
+    });
+
+    // Competition status changed
+    socket.on('competition:status', ({ status, competition }) => {
+      setCompetition(competition);
+      
+      if (status === 'frozen') {
+        // Show frozen message or hide scoreboard
+        console.log('Competition frozen');
+      } else if (status === 'ended') {
+        console.log('Competition ended');
+      }
+      
+      // Re-fetch teams to update leaderboard
+      fetchTeams();
+    });
+
+    // New announcement
+    socket.on('announcement:created', ({ announcement }) => {
+      setAnnouncements(prev => [announcement, ...prev]);
+      if (!shownAnnouncements.has(announcement._id)) {
+        setVisiblePopups(prev => [...prev, announcement]);
+        setShownAnnouncements(prev => new Set([...prev, announcement._id]));
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    // Cleanup listeners
+    return () => {
+      socket.off('competition:updated');
+      socket.off('competition:status');
+      socket.off('announcement:created');
+    };
+  }, [socket, shownAnnouncements])
 
   const fetchLeaderboard = async () => {
     try {

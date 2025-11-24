@@ -4,6 +4,7 @@ import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdi
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled, uploadChallengeFile, deleteChallengeFile, getChallengeFileUrl, getAllUsers, deleteUser, toggleUserBan } from '../utils/api'
+import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import RealTimeMonitoring from './RealTimeMonitoring'
 import AnnouncementsManager from './AnnouncementsManager'
@@ -53,6 +54,7 @@ function Admin() {
   const [selectedFiles, setSelectedFiles] = useState([])
   const [uploadingFile, setUploadingFile] = useState(false)
   const navigate = useNavigate()
+  const { socket } = useSocket()
 
   useEffect(() => {
     const auth = getAdminAuth()
@@ -73,6 +75,65 @@ function Admin() {
 
     return () => clearInterval(interval)
   }, [autoRefresh])
+
+  // Socket.io listeners for multi-admin synchronization
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for changes from other admins and auto-refresh
+    socket.on('challenge:created', () => {
+      loadData(true); // Silent refresh
+      showMessage('Challenge created by another admin', 'info');
+    });
+
+    socket.on('challenge:updated', () => {
+      loadData(true);
+      showMessage('Challenge updated by another admin', 'info');
+    });
+
+    socket.on('challenge:deleted', () => {
+      loadData(true);
+      showMessage('Challenge deleted by another admin', 'info');
+    });
+
+    socket.on('challenge:visibility', () => {
+      loadData(true);
+    });
+
+    socket.on('challenge:disabled', () => {
+      loadData(true);
+    });
+
+    socket.on('team:deleted', () => {
+      loadData(true);
+      showMessage('Team deleted by another admin', 'info');
+    });
+
+    socket.on('competition:updated', () => {
+      showMessage('Competition settings updated by another admin', 'info');
+    });
+
+    socket.on('competition:status', ({ status }) => {
+      showMessage(`Competition status changed to ${status} by another admin`, 'info');
+    });
+
+    socket.on('announcement:created', () => {
+      showMessage('New announcement created by another admin', 'info');
+    });
+
+    // Cleanup listeners
+    return () => {
+      socket.off('challenge:created');
+      socket.off('challenge:updated');
+      socket.off('challenge:deleted');
+      socket.off('challenge:visibility');
+      socket.off('challenge:disabled');
+      socket.off('team:deleted');
+      socket.off('competition:updated');
+      socket.off('competition:status');
+      socket.off('announcement:created');
+    };
+  }, [socket])
 
   const handleDeleteUser = async (userId, username) => {
     if (!confirm(`Delete user "${username}"? This will remove them from their team.`)) return

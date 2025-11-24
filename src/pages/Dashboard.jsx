@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket, FaSignOutAlt, FaTrophy, FaChartLine, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell, FaMedal } from 'react-icons/fa'
 import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam, API_URL } from '../utils/api'
+import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import './Dashboard.css'
 
@@ -22,6 +23,7 @@ function Dashboard() {
   const [isCreatingTeam, setIsCreatingTeam] = useState(false)
   const [isJoiningTeam, setIsJoiningTeam] = useState(false)
   const navigate = useNavigate()
+  const { socket } = useSocket()
 
   useEffect(() => {
     const username = getCurrentUser()
@@ -80,6 +82,60 @@ function Dashboard() {
     const interval = setInterval(fetchAnnouncements, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  // Socket.io listeners for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Team deleted
+    socket.on('team:deleted', ({ teamCode }) => {
+      if (teamData?.code === teamCode) {
+        showMessage('Your team has been deleted by an admin', 'error');
+        setHasTeam(false);
+        setTeamData(null);
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    });
+
+    // Competition updated
+    socket.on('competition:updated', ({ competition }) => {
+      setCompetition(competition);
+      showMessage('Competition settings have been updated', 'info');
+    });
+
+    // Competition status changed
+    socket.on('competition:status', ({ status, competition }) => {
+      setCompetition(competition);
+      
+      if (status === 'frozen') {
+        showMessage('⚠️ Competition has been frozen!', 'warning');
+      } else if (status === 'ended') {
+        showMessage('🏁 Competition has ended!', 'warning');
+      } else if (status === 'live') {
+        showMessage('🚀 Competition is now live!', 'success');
+      }
+    });
+
+    // New announcement
+    socket.on('announcement:created', ({ announcement }) => {
+      setAnnouncements(prev => [announcement, ...prev]);
+      if (!shownAnnouncements.has(announcement._id)) {
+        setVisiblePopups(prev => [...prev, announcement]);
+        setShownAnnouncements(prev => new Set([...prev, announcement._id]));
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    // Cleanup listeners
+    return () => {
+      socket.off('team:deleted');
+      socket.off('competition:updated');
+      socket.off('competition:status');
+      socket.off('announcement:created');
+    };
+  }, [socket, teamData, shownAnnouncements])
 
   const fetchCompetition = async () => {
     try {

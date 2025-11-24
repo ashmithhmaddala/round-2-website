@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaSearch, FaLock, FaUsers, FaBell, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSignOutAlt, FaHome, FaMedal, FaDownload, FaFileAlt, FaFileAudio, FaFileVideo, FaFileImage, FaFileCode, FaFileArchive, FaFilePdf, FaCheck, FaStop } from 'react-icons/fa'
 import { getCurrentUser, logout, getUser, getTeam, getChallenges, submitFlag, API_URL, getChallengeFileUrl } from '../utils/api'
+import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import '../pages/Dashboard.css'
 import './Challenges.css'
@@ -24,6 +25,7 @@ function Challenges() {
   const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
   const prevStatusRef = useRef(null)
+  const { socket } = useSocket()
 
   useEffect(() => {
     const loadData = async () => {
@@ -150,6 +152,112 @@ function Challenges() {
     const interval = setInterval(fetchAnnouncements, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  // Socket.io listeners for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Challenge created
+    socket.on('challenge:created', ({ challenge }) => {
+      setChallenges(prev => [...prev, challenge]);
+      showMessage(`New challenge added: ${challenge.title}`, 'success');
+    });
+
+    // Challenge updated
+    socket.on('challenge:updated', ({ challenge }) => {
+      setChallenges(prev => 
+        prev.map(c => c.id === challenge.id ? challenge : c)
+      );
+      showMessage(`Challenge updated: ${challenge.title}`, 'info');
+      
+      // If currently viewing updated challenge, close modal
+      if (currentChallenge?.id === challenge.id) {
+        setCurrentChallenge(challenge);
+      }
+    });
+
+    // Challenge deleted
+    socket.on('challenge:deleted', ({ challengeId }) => {
+      setChallenges(prev => prev.filter(c => c.id !== challengeId));
+      showMessage('A challenge has been removed', 'warning');
+      
+      // If currently viewing deleted challenge, close modal
+      if (currentChallenge?.id === challengeId) {
+        setModalOpen(false);
+        setCurrentChallenge(null);
+      }
+    });
+
+    // Challenge visibility toggled
+    socket.on('challenge:visibility', ({ challengeId, visible }) => {
+      setChallenges(prev => 
+        prev.map(c => c.id === challengeId ? { ...c, visible } : c)
+      );
+      
+      // If currently viewing hidden challenge, close modal
+      if (currentChallenge?.id === challengeId && !visible) {
+        setModalOpen(false);
+        setCurrentChallenge(null);
+        showMessage('This challenge has been hidden', 'warning');
+      }
+    });
+
+    // Challenge disabled status toggled
+    socket.on('challenge:disabled', ({ challengeId, disabled }) => {
+      setChallenges(prev => 
+        prev.map(c => c.id === challengeId ? { ...c, disabled } : c)
+      );
+      
+      // If currently viewing disabled challenge, update it
+      if (currentChallenge?.id === challengeId) {
+        setCurrentChallenge(prev => ({ ...prev, disabled }));
+        if (disabled) {
+          showMessage('This challenge has been disabled', 'warning');
+        }
+      }
+    });
+
+    // Competition updated
+    socket.on('competition:updated', ({ competition }) => {
+      setCompetition(competition);
+      showMessage('Competition settings updated', 'info');
+    });
+
+    // Competition status changed
+    socket.on('competition:status', ({ status, competition }) => {
+      setCompetition(competition);
+      
+      if (status === 'frozen') {
+        showMessage('Competition has been frozen!', 'warning');
+      } else if (status === 'ended') {
+        showMessage('Competition has ended!', 'warning');
+      } else if (status === 'live') {
+        showMessage('Competition is now live!', 'success');
+      }
+    });
+
+    // New announcement
+    socket.on('announcement:created', ({ announcement }) => {
+      setAnnouncements(prev => [announcement, ...prev]);
+      if (!shownAnnouncements.has(announcement._id)) {
+        setVisiblePopups(prev => [...prev, announcement]);
+        setShownAnnouncements(prev => new Set([...prev, announcement._id]));
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    // Cleanup listeners
+    return () => {
+      socket.off('challenge:created');
+      socket.off('challenge:updated');
+      socket.off('challenge:deleted');
+      socket.off('challenge:visibility');
+      socket.off('challenge:disabled');
+      socket.off('competition:updated');
+      socket.off('competition:status');
+      socket.off('announcement:created');
+    };
+  }, [socket, currentChallenge, shownAnnouncements])
 
   const fetchCompetition = async () => {
     try {

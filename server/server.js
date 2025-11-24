@@ -1022,7 +1022,7 @@ app.post('/api/challenges/submit', async (req, res) => {
 });
 
 // Create challenge (admin)
-app.post('/api/challenges', async (req, res) => {
+app.post('/api/challenges', authenticateAdmin, async (req, res) => {
   try {
     const { flag, ...rest } = req.body;
     
@@ -1053,7 +1053,7 @@ app.post('/api/challenges', async (req, res) => {
 });
 
 // Update challenge (admin)
-app.put('/api/challenges/:id', async (req, res) => {
+app.put('/api/challenges/:id', authenticateAdmin, async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (updateData.flag) {
@@ -1081,7 +1081,7 @@ app.put('/api/challenges/:id', async (req, res) => {
 });
 
 // Delete challenge (admin)
-app.delete('/api/challenges/:id', async (req, res) => {
+app.delete('/api/challenges/:id', authenticateAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (challenge && challenge.files && challenge.files.length > 0) {
@@ -1121,7 +1121,7 @@ const upload = multer({
 });
 
 // Upload file for a challenge (admin)
-app.post('/api/challenges/:id/files', upload.single('file'), async (req, res) => {
+app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1234,7 +1234,7 @@ app.get('/api/challenges/:id/files/:filename', async (req, res) => {
 });
 
 // Delete file from a challenge (admin)
-app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
+app.delete('/api/challenges/:id/files/:filename', authenticateAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1275,8 +1275,53 @@ app.delete('/api/challenges/:id/files/:filename', async (req, res) => {
 
 // ==================== ADMIN ROUTES ====================
 
+// Admin Authentication Middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const adminUsername = req.headers['x-admin-username'];
+    
+    if (!adminUsername) {
+      await logAction('ADMIN_ACCESS_DENIED', 'unknown', 'admin', 'Attempted admin access without authentication', req);
+      return res.status(401).json({ error: 'Admin authentication required' });
+    }
+    
+    // Verify admin exists and is valid
+    const admin = await Admin.findOne({ username: adminUsername });
+    if (!admin) {
+      await logAction('ADMIN_ACCESS_DENIED', adminUsername, 'admin', 'Invalid admin username in header', req);
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+    
+    // Attach admin info to request for use in routes
+    req.admin = admin;
+    next();
+  } catch (error) {
+    console.error('Admin authentication error:', error);
+    res.status(500).json({ error: 'Authentication error' });
+  }
+};
+
+// Super Admin Only Middleware
+const requireSuperAdmin = async (req, res, next) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({ error: 'Admin authentication required' });
+    }
+    
+    if (req.admin.role !== 'super_admin') {
+      await logAction('SUPER_ADMIN_ACCESS_DENIED', req.admin.username, 'admin', 'Attempted super admin action without permission', req);
+      return res.status(403).json({ error: 'Super admin access required' });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Super admin check error:', error);
+    res.status(500).json({ error: 'Authorization error' });
+  }
+};
+
 // Get all users (admin)
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     res.json(users);
@@ -1286,7 +1331,7 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 // Toggle user ban status
-app.patch('/api/admin/users/:id/ban', async (req, res) => {
+app.patch('/api/admin/users/:id/ban', authenticateAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -1313,7 +1358,7 @@ app.patch('/api/admin/users/:id/ban', async (req, res) => {
 });
 
 // Delete user (admin)
-app.delete('/api/admin/users/:id', async (req, res) => {
+app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -1406,7 +1451,7 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 // Get all admins
-app.get('/api/admin/admins', async (req, res) => {
+app.get('/api/admin/admins', authenticateAdmin, async (req, res) => {
   try {
     const admins = await Admin.find().select('-password').sort({ createdAt: -1 });
     res.json(admins);
@@ -1416,7 +1461,7 @@ app.get('/api/admin/admins', async (req, res) => {
 });
 
 // Create new admin (only super_admin can do this)
-app.post('/api/admin/admins', async (req, res) => {
+app.post('/api/admin/admins', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const { username, email, password, createdBy } = req.body;
     
@@ -1460,7 +1505,7 @@ app.post('/api/admin/admins', async (req, res) => {
 });
 
 // Change admin password
-app.put('/api/admin/change-password', async (req, res) => {
+app.put('/api/admin/change-password', authenticateAdmin, async (req, res) => {
   try {
     const { username, currentPassword, newPassword } = req.body;
     
@@ -1506,7 +1551,7 @@ app.put('/api/admin/change-password', async (req, res) => {
 });
 
 // Reset admin password (for super admin)
-app.put('/api/admin/reset-password', async (req, res) => {
+app.put('/api/admin/reset-password', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const { targetUsername, newPassword, requestingUsername } = req.body;
     
@@ -1552,7 +1597,7 @@ app.put('/api/admin/reset-password', async (req, res) => {
 });
 
 // Delete admin
-app.delete('/api/admin/admins/:username', async (req, res) => {
+app.delete('/api/admin/admins/:username', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const admin = await Admin.findOne({ username: req.params.username });
     
@@ -1576,7 +1621,7 @@ app.delete('/api/admin/admins/:username', async (req, res) => {
 });
 
 // Get analytics
-app.get('/api/admin/analytics', async (req, res) => {
+app.get('/api/admin/analytics', authenticateAdmin, async (req, res) => {
   try {
     const teams = await Team.find().sort({ score: -1 });
     const challenges = await Challenge.find();
@@ -1626,7 +1671,7 @@ app.get('/api/logs', (req, res) => {
 });
 
 // Migration endpoint - Add email to existing users (ONE-TIME USE)
-app.post('/api/admin/migrate-add-emails', async (req, res) => {
+app.post('/api/admin/migrate-add-emails', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     // Find all users without email
     const usersWithoutEmail = await User.find({ email: { $exists: false } });
@@ -1659,7 +1704,7 @@ app.post('/api/admin/migrate-add-emails', async (req, res) => {
 });
 
 // Migration endpoint - Add disabled field to existing challenges (ONE-TIME USE)
-app.post('/api/admin/migrate-add-disabled', async (req, res) => {
+app.post('/api/admin/migrate-add-disabled', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const result = await Challenge.updateMany(
       { disabled: { $exists: false } },
@@ -1714,7 +1759,7 @@ app.put('/api/auth/update-email', async (req, res) => {
 });
 
 // Delete all users endpoint (ADMIN ONLY - USE WITH CAUTION)
-app.delete('/api/admin/delete-all-users', async (req, res) => {
+app.delete('/api/admin/delete-all-users', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const result = await User.deleteMany({});
     res.json({ 
@@ -1728,7 +1773,7 @@ app.delete('/api/admin/delete-all-users', async (req, res) => {
 });
 
 // Migration: Add visible field to existing challenges
-app.post('/api/admin/migrate-challenge-visibility', async (req, res) => {
+app.post('/api/admin/migrate-challenge-visibility', authenticateAdmin, requireSuperAdmin, async (req, res) => {
   try {
     const result = await Challenge.updateMany(
       { visible: { $exists: false } },
@@ -1748,7 +1793,7 @@ app.post('/api/admin/migrate-challenge-visibility', async (req, res) => {
 // ===== REAL-TIME ANALYTICS ENDPOINTS =====
 
 // Get real-time analytics data
-app.get('/api/admin/analytics/realtime', async (req, res) => {
+app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => {
   try {
     const [teams, challenges, solves] = await Promise.all([
       Team.find(),
@@ -1843,7 +1888,7 @@ app.get('/api/admin/analytics/realtime', async (req, res) => {
 });
 
 // Get challenge statistics
-app.get('/api/admin/analytics/challenges', async (req, res) => {
+app.get('/api/admin/analytics/challenges', authenticateAdmin, async (req, res) => {
   try {
     const challenges = await Challenge.find();
     
@@ -1867,7 +1912,7 @@ app.get('/api/admin/analytics/challenges', async (req, res) => {
 });
 
 // Toggle challenge visibility
-app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
+app.patch('/api/admin/challenges/:id/toggle-visibility', authenticateAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1897,7 +1942,7 @@ app.patch('/api/admin/challenges/:id/toggle-visibility', async (req, res) => {
 });
 
 // Toggle challenge disabled status (admin)
-app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
+app.patch('/api/admin/challenges/:id/toggle-disabled', authenticateAdmin, async (req, res) => {
   try {
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
@@ -1927,7 +1972,7 @@ app.patch('/api/admin/challenges/:id/toggle-disabled', async (req, res) => {
 });
 
 // Get solve timeline (for graphs)
-app.get('/api/admin/analytics/timeline', async (req, res) => {
+app.get('/api/admin/analytics/timeline', authenticateAdmin, async (req, res) => {
   try {
     const solves = await Solve.find()
       .populate('challenge')
@@ -1956,7 +2001,7 @@ app.get('/api/admin/analytics/timeline', async (req, res) => {
 });
 
 // Get all logs
-app.get('/api/admin/logs', async (req, res) => {
+app.get('/api/admin/logs', authenticateAdmin, async (req, res) => {
   try {
     const logs = await Log.find().sort({ timestamp: -1 }).limit(500);
     res.json(logs);
@@ -1987,7 +2032,7 @@ app.get('/api/announcements', async (req, res) => {
 });
 
 // Get all announcements (admin - includes inactive)
-app.get('/api/admin/announcements', async (req, res) => {
+app.get('/api/admin/announcements', authenticateAdmin, async (req, res) => {
   try {
     const announcements = await Announcement.find()
       .sort({ pinned: -1, createdAt: -1 });
@@ -1998,7 +2043,7 @@ app.get('/api/admin/announcements', async (req, res) => {
 });
 
 // Create announcement
-app.post('/api/admin/announcements', async (req, res) => {
+app.post('/api/admin/announcements', authenticateAdmin, async (req, res) => {
   try {
     const { title, message, type, priority, pinned, expiresAt, createdBy } = req.body;
     
@@ -2027,7 +2072,7 @@ app.post('/api/admin/announcements', async (req, res) => {
 });
 
 // Update announcement
-app.put('/api/admin/announcements/:id', async (req, res) => {
+app.put('/api/admin/announcements/:id', authenticateAdmin, async (req, res) => {
   try {
     const { title, message, type, priority, pinned, expiresAt, active } = req.body;
     
@@ -2060,7 +2105,7 @@ app.put('/api/admin/announcements/:id', async (req, res) => {
 });
 
 // Delete announcement
-app.delete('/api/admin/announcements/:id', async (req, res) => {
+app.delete('/api/admin/announcements/:id', authenticateAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findByIdAndDelete(req.params.id);
     
@@ -2077,7 +2122,7 @@ app.delete('/api/admin/announcements/:id', async (req, res) => {
 });
 
 // Toggle announcement active status
-app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
+app.patch('/api/admin/announcements/:id/toggle', authenticateAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     
@@ -2101,7 +2146,7 @@ app.patch('/api/admin/announcements/:id/toggle', async (req, res) => {
 });
 
 // Toggle announcement pin status
-app.patch('/api/admin/announcements/:id/pin', async (req, res) => {
+app.patch('/api/admin/announcements/:id/pin', authenticateAdmin, async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
     
@@ -2164,7 +2209,7 @@ app.get('/api/competition', async (req, res) => {
 });
 
 // Get competition settings (admin)
-app.get('/api/admin/competition', async (req, res) => {
+app.get('/api/admin/competition', authenticateAdmin, async (req, res) => {
   try {
     const competition = await Competition.findOne().sort({ createdAt: -1 });
     if (!competition) {
@@ -2177,7 +2222,7 @@ app.get('/api/admin/competition', async (req, res) => {
 });
 
 // Update competition settings (admin)
-app.put('/api/admin/competition', async (req, res) => {
+app.put('/api/admin/competition', authenticateAdmin, async (req, res) => {
   try {
     const { name, description, startTime, endTime, freezeTime, allowLateSubmissions, showScoreboard } = req.body;
     
@@ -2237,7 +2282,7 @@ app.put('/api/admin/competition', async (req, res) => {
 });
 
 // Update competition status manually (admin)
-app.put('/api/admin/competition/status', async (req, res) => {
+app.put('/api/admin/competition/status', authenticateAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     

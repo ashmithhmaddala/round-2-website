@@ -10,6 +10,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ForgotAdminPassword from './pages/ForgotAdminPassword';
 import VerifyEmail from './pages/VerifyEmail';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css'
 
 function App() {
@@ -21,8 +22,22 @@ function App() {
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/logging" element={<LoggingAndMonitoring />} />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <Admin />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/logging" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <LoggingAndMonitoring />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/forgot-admin-password" element={<ForgotAdminPassword />} />

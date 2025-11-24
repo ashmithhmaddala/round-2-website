@@ -35,11 +35,9 @@ function Dashboard() {
     checkTeamStatus(username)
   }, [navigate])
 
-  // Fetch competition data
+  // Fetch competition data once - socket handles updates
   useEffect(() => {
     fetchCompetition()
-    const interval = setInterval(fetchCompetition, 3000)
-    return () => clearInterval(interval)
   }, [])
 
   // Calculate time left
@@ -76,11 +74,9 @@ function Dashboard() {
     return () => clearInterval(timer)
   }, [competition])
 
-  // Fetch announcements
+  // Fetch announcements once - socket handles real-time updates
   useEffect(() => {
     fetchAnnouncements()
-    const interval = setInterval(fetchAnnouncements, 5000)
-    return () => clearInterval(interval)
   }, [])
 
   // Socket.io listeners for real-time updates

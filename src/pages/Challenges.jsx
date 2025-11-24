@@ -57,27 +57,13 @@ function Challenges() {
     }
     loadData()
 
-    // Poll for challenge updates every 5 seconds
-    const challengesInterval = setInterval(async () => {
-      try {
-        const challengesData = await getChallenges()
-        setChallenges(challengesData)
-        
-        // Also update team data to check for new solves
-        if (currentUser && teamData) {
-          const updatedTeam = await getTeam(teamData.code)
-          setTeamData(updatedTeam)
-        }
-      } catch (error) {
-        console.error('Error polling challenges:', error)
-      }
-    }, 5000)
-
+    // Socket.io handles real-time updates - no polling needed
+    // Removed 5-second polling to prevent memory leaks
+    
     return () => {
-      clearInterval(sessionCheckInterval)
-      clearInterval(challengesInterval)
+      // Cleanup if any
     }
-  }, [navigate, currentUser, teamData?.code])
+  }, [navigate])
 
   // Effect to handle modal state when challenge status changes
   useEffect(() => {
@@ -99,11 +85,9 @@ function Challenges() {
     }
   }, [challenges, modalOpen, currentChallenge])
 
-  // Fetch competition data
+  // Fetch competition data once - socket handles updates
   useEffect(() => {
     fetchCompetition()
-    const interval = setInterval(fetchCompetition, 3000)
-    return () => clearInterval(interval)
   }, [])
 
   // Calculate time left
@@ -146,11 +130,9 @@ function Challenges() {
     return () => clearInterval(timer)
   }, [competition])
 
-  // Fetch announcements
+  // Fetch announcements once - socket handles real-time updates
   useEffect(() => {
     fetchAnnouncements()
-    const interval = setInterval(fetchAnnouncements, 5000)
-    return () => clearInterval(interval)
   }, [])
 
   // Socket.io listeners for real-time updates

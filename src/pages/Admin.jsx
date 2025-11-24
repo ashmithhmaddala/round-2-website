@@ -65,13 +65,14 @@ function Admin() {
     loadData()
   }, [navigate])
 
-  // Auto-refresh every 5 seconds
+  // Socket.io handles real-time updates from other admins
+  // Keep minimal polling for fallback, but only if autoRefresh is on
   useEffect(() => {
     if (!autoRefresh) return
 
     const interval = setInterval(() => {
-      loadData(true) // Silent refresh
-    }, 5000)
+      loadData(true) // Silent refresh as fallback
+    }, 30000) // Reduced from 5s to 30s - socket handles real-time
 
     return () => clearInterval(interval)
   }, [autoRefresh])

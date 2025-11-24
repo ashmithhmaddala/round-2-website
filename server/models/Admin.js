@@ -38,4 +38,8 @@ const adminSchema = new mongoose.Schema({
   }
 });
 
+// Performance indexes
+adminSchema.index({ username: 1 }); // Unique already creates index
+adminSchema.index({ email: 1 });
+
 export default mongoose.model('Admin', adminSchema);

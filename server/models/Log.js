@@ -28,4 +28,13 @@ const logSchema = new mongoose.Schema({
   }
 });
 
+// Performance indexes
+logSchema.index({ timestamp: -1 }); // For sorting logs newest first
+logSchema.index({ action: 1 });
+logSchema.index({ actor: 1 });
+logSchema.index({ role: 1 });
+
+// TTL index - automatically delete logs older than 30 days
+logSchema.index({ timestamp: 1 }, { expireAfterSeconds: 2592000 }); // 30 days
+
 export default mongoose.model('Log', logSchema);

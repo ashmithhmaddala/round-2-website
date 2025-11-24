@@ -62,4 +62,11 @@ const challengeSchema = new mongoose.Schema({
   }
 });
 
+// Performance indexes
+challengeSchema.index({ id: 1 }); // Unique already creates index
+challengeSchema.index({ visible: 1 });
+challengeSchema.index({ disabled: 1 });
+challengeSchema.index({ category: 1 });
+challengeSchema.index({ visible: 1, disabled: 1 }); // Compound index for queries
+
 export default mongoose.model('Challenge', challengeSchema);

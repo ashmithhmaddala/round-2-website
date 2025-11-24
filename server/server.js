@@ -152,7 +152,38 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Prevent huge payloads
+
+// Input sanitization middleware
+const sanitizeInput = (req, res, next) => {
+  if (req.body) {
+    // Remove any MongoDB operators from input
+    const sanitize = (obj) => {
+      if (typeof obj !== 'object' || obj === null) return obj;
+      
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        // Remove keys starting with $ (MongoDB operators)
+        if (key.startsWith('$')) {
+          continue;
+        }
+        
+        // Recursively sanitize nested objects
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          cleaned[key] = sanitize(value);
+        } else {
+          cleaned[key] = value;
+        }
+      }
+      return cleaned;
+    };
+    
+    req.body = sanitize(req.body);
+  }
+  next();
+};
+
+app.use(sanitizeInput);
 
 // Rate limiting
 const loginLimiter = rateLimit({
@@ -223,6 +254,17 @@ const requireSuperAdmin = async (req, res, next) => {
   }
 };
 
+// Validate required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'EMAIL_USER', 'EMAIL_PASS', 'ADMIN_PASSWORD', 'FRONTEND_URL'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ CRITICAL: Missing required environment variables:');
+  missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
+  console.error('\n💡 Create a .env file with these variables. See ENV_TEMPLATE.md for details.\n');
+  process.exit(1);
+}
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -239,7 +281,11 @@ mongoose.connect(process.env.MONGODB_URI)
     initializeSuperAdmin();
     initializeCompetition();
   })
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+    console.error('💡 Check your MONGODB_URI environment variable');
+    process.exit(1);
+  });
 
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
@@ -1054,58 +1100,78 @@ app.post('/api/challenges/submit', async (req, res) => {
       return res.json({ success: false, message: 'Incorrect flag' });
     }
 
-    // Check if already solved
+    // Check if already solved and update atomically to prevent race conditions
     const user = await User.findOne({ username });
     const team = teamCode ? await Team.findOne({ code: teamCode }) : null;
 
-    const existingSolve = await Solve.findOne({
-      team: team?._id || null,
-      challenge: challenge._id
-    });
+    // Use MongoDB transaction to prevent race conditions
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (existingSolve) {
-      await logAction('SOLVE_DUPLICATE', username, 'user', `Already solved challenge ${challengeId}`, req);
-      return res.json({ success: false, message: 'Challenge already solved' });
-    }
+    try {
+      // Check if already solved within transaction
+      const existingSolve = await Solve.findOne({
+        team: team?._id || null,
+        challenge: challenge._id
+      }).session(session);
 
-    // Record solve
-    const solve = new Solve({
-      team: team?._id || null,
-      challenge: challenge._id
-    });
-    await solve.save();
-    
-    await logAction('SOLVE_SUCCESS', username, 'user', `Solved challenge ${challengeId} (${challenge.points} pts)`, req);
-
-    // Check for first blood
-    let isFirstBlood = false;
-    if (!challenge.firstBlood || !challenge.firstBlood.teamCode) {
-      if (team) {
-        challenge.firstBlood = {
-          teamCode: team.code,
-          teamName: team.name,
-          solvedAt: new Date()
-        };
-        isFirstBlood = true;
+      if (existingSolve) {
+        await session.abortTransaction();
+        session.endSession();
+        await logAction('SOLVE_DUPLICATE', username, 'user', `Already solved challenge ${challengeId}`, req);
+        return res.json({ success: false, message: 'Challenge already solved' });
       }
-    }
 
-    // Update challenge solvedBy
-    if (!challenge.solvedBy.includes(teamCode)) {
-      challenge.solvedBy.push(teamCode);
-    }
-    await challenge.save();
+      // Record solve
+      const solve = new Solve({
+        team: team?._id || null,
+        challenge: challenge._id
+      });
+      await solve.save({ session });
+      
+      await logAction('SOLVE_SUCCESS', username, 'user', `Solved challenge ${challengeId} (${challenge.points} pts)`, req);
 
-    // Update user
-    user.solvedChallenges.push(challengeId);
-    await user.save();
+      // Check for first blood atomically
+      let isFirstBlood = false;
+      if (!challenge.firstBlood || !challenge.firstBlood.teamCode) {
+        if (team) {
+          challenge.firstBlood = {
+            teamCode: team.code,
+            teamName: team.name,
+            solvedAt: new Date()
+          };
+          isFirstBlood = true;
+        }
+      }
 
-    // Update team
-    if (team) {
-      team.solvedChallenges.push(challengeId);
-      team.score += challenge.points;
-      team.lastSolveTime = new Date();
-      await team.save();
+      // Update challenge solvedBy atomically
+      if (!challenge.solvedBy.includes(teamCode)) {
+        challenge.solvedBy.push(teamCode);
+      }
+      await challenge.save({ session });
+
+      // Update user atomically
+      if (!user.solvedChallenges.includes(challengeId)) {
+        user.solvedChallenges.push(challengeId);
+        await user.save({ session });
+      }
+
+      // Update team atomically
+      if (team && !team.solvedChallenges.includes(challengeId)) {
+        team.solvedChallenges.push(challengeId);
+        team.score += challenge.points;
+        team.lastSolveTime = new Date();
+        await team.save({ session });
+      }
+
+      // Commit transaction - all or nothing
+      await session.commitTransaction();
+      session.endSession();
+
+    } catch (transactionError) {
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
     }
 
     // Broadcast solve to all connected clients (real-time leaderboard update)
@@ -2426,3 +2492,39 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`🔌 Socket.IO ready for real-time connections`);
 });
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+  console.log(`\n${signal} received, shutting down gracefully...`);
+  
+  // Stop accepting new connections
+  httpServer.close(async () => {
+    console.log('✅ HTTP server closed');
+    
+    // Close Socket.IO connections
+    io.close(() => {
+      console.log('✅ Socket.IO connections closed');
+    });
+    
+    // Close MongoDB connection
+    try {
+      await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
+    } catch (error) {
+      console.error('❌ Error closing MongoDB:', error);
+    }
+    
+    console.log('👋 Graceful shutdown complete');
+    process.exit(0);
+  });
+  
+  // Force shutdown if graceful shutdown takes too long
+  setTimeout(() => {
+    console.error('❌ Forceful shutdown - graceful shutdown timeout');
+    process.exit(1);
+  }, 10000); // 10 second timeout
+};
+
+// Listen for termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

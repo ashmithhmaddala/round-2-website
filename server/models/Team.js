@@ -36,4 +36,9 @@ const teamSchema = new mongoose.Schema({
   }
 });
 
+// Performance indexes
+teamSchema.index({ code: 1 }); // Unique already creates index
+teamSchema.index({ score: -1 }); // Descending for leaderboard
+teamSchema.index({ lastSolveTime: 1 }); // For tie-breaking
+
 export default mongoose.model('Team', teamSchema);

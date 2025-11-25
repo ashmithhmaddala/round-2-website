@@ -210,7 +210,7 @@ function Admin() {
   const handleEditChallenge = (challenge) => {
     setEditingId(challenge.id)
     setShowForm(true)
-    setFormData({ ...challenge, points: challenge.points.toString() })
+    setFormData({ ...challenge, points: challenge.points.toString(), flag: '' })
   }
 
   const handleSaveChallenge = async (e) => {
@@ -223,8 +223,12 @@ function Admin() {
         category: formData.category,
         difficulty: formData.difficulty,
         points: parseInt(formData.points),
-        description: formData.description,
-        flag: formData.flag
+        description: formData.description
+      }
+
+      // Only include flag if provided (for create or update)
+      if (formData.flag) {
+        challengeData.flag = formData.flag
       }
 
       if (editingId) {
@@ -945,13 +949,13 @@ function Admin() {
                   </div>
                   
                   <div className="form-field">
-                    <label>Flag</label>
+                    <label>Flag {editingId && <span style={{ fontSize: '0.85em', color: '#64748b', fontWeight: 'normal' }}>(leave empty to keep current)</span>}</label>
                     <input 
                       type="text" 
                       value={formData.flag} 
                       onChange={(e) => setFormData({ ...formData, flag: e.target.value })} 
-                      placeholder="CTF{...}"
-                      required 
+                      placeholder={editingId ? "Leave empty to keep existing flag" : "CTF{...}"}
+                      required={!editingId}
                     />
                   </div>
                   

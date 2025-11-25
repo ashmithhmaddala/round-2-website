@@ -27,6 +27,10 @@ const competitionSchema = new mongoose.Schema({
     enum: ['upcoming', 'live', 'frozen', 'ended'],
     default: 'upcoming'
   },
+  manualOverride: {
+    type: Boolean,
+    default: false
+  },
   allowLateSubmissions: {
     type: Boolean,
     default: false

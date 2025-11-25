@@ -1105,23 +1105,25 @@ app.post('/api/challenges/submit', async (req, res) => {
     if (competition) {
       const now = new Date();
       
-      // Auto-update competition status (Enforce time-based status)
-      let newStatus = competition.status;
-      if (now < competition.startTime) {
-        newStatus = 'upcoming';
-      } else if (now >= competition.endTime) {
-        newStatus = 'ended';
-      } else if (competition.freezeTime && now >= competition.freezeTime) {
-        newStatus = 'frozen';
-      } else if (now >= competition.startTime && now < competition.endTime) {
-        if (newStatus === 'upcoming' || newStatus === 'ended') {
-          newStatus = 'live';
+      // Auto-update competition status (only if manual override is disabled)
+      if (!competition.manualOverride) {
+        let newStatus = competition.status;
+        if (now < competition.startTime) {
+          newStatus = 'upcoming';
+        } else if (now >= competition.endTime) {
+          newStatus = 'ended';
+        } else if (competition.freezeTime && now >= competition.freezeTime) {
+          newStatus = 'frozen';
+        } else if (now >= competition.startTime && now < competition.endTime) {
+          if (newStatus === 'upcoming' || newStatus === 'ended') {
+            newStatus = 'live';
+          }
         }
-      }
 
-      if (newStatus !== competition.status) {
-        competition.status = newStatus;
-        await competition.save();
+        if (newStatus !== competition.status) {
+          competition.status = newStatus;
+          await competition.save();
+        }
       }
 
       // Prevent submissions if competition hasn't started
@@ -2484,27 +2486,29 @@ app.get('/api/competition', async (req, res) => {
       return res.status(404).json({ error: 'No competition configured' });
     }
 
-    // Auto-update status based on current time
+    // Auto-update status based on current time (only if manual override is disabled)
     const now = new Date();
     let newStatus = competition.status;
 
-    // Enforce time-based status
-    if (now < competition.startTime) {
-      newStatus = 'upcoming';
-    } else if (now >= competition.endTime) {
-      newStatus = 'ended';
-    } else if (competition.freezeTime && now >= competition.freezeTime) {
-      newStatus = 'frozen';
-    } else if (now >= competition.startTime && now < competition.endTime) {
-      // If we are in the active period, ensure we are not 'upcoming' or 'ended'
-      if (newStatus === 'upcoming' || newStatus === 'ended') {
-        newStatus = 'live';
+    if (!competition.manualOverride) {
+      // Enforce time-based status
+      if (now < competition.startTime) {
+        newStatus = 'upcoming';
+      } else if (now >= competition.endTime) {
+        newStatus = 'ended';
+      } else if (competition.freezeTime && now >= competition.freezeTime) {
+        newStatus = 'frozen';
+      } else if (now >= competition.startTime && now < competition.endTime) {
+        // If we are in the active period, ensure we are not 'upcoming' or 'ended'
+        if (newStatus === 'upcoming' || newStatus === 'ended') {
+          newStatus = 'live';
+        }
       }
-    }
 
-    if (newStatus !== competition.status) {
-      competition.status = newStatus;
-      await competition.save();
+      if (newStatus !== competition.status) {
+        competition.status = newStatus;
+        await competition.save();
+      }
     }
 
     res.json(competition);
@@ -2558,6 +2562,9 @@ app.put('/api/admin/competition', authenticateAdmin, async (req, res) => {
     if (allowLateSubmissions !== undefined) competition.allowLateSubmissions = allowLateSubmissions;
     if (showScoreboard !== undefined) competition.showScoreboard = showScoreboard;
 
+    // Disable manual override when times are updated
+    competition.manualOverride = false;
+
     // Recalculate status based on new times
     const now = new Date();
     if (now < competition.startTime) {
@@ -2604,9 +2611,10 @@ app.put('/api/admin/competition/status', authenticateAdmin, async (req, res) => 
     }
 
     competition.status = status;
+    competition.manualOverride = true; // Enable manual override when admin changes status
     await competition.save();
 
-    await logAction('UPDATE_COMPETITION_STATUS', 'admin', 'admin', `Updated competition status to ${status}`, req);
+    await logAction('UPDATE_COMPETITION_STATUS', 'admin', 'admin', `Updated competition status to ${status} (manual override enabled)`, req);
 
     // Broadcast to all connected clients
     io.emit('competition:status', { status, competition });

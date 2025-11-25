@@ -2,12 +2,12 @@ import EmailQueue from '../models/EmailQueue.js';
 import path from 'path';
 
 let isProcessing = false;
-const BATCH_SIZE = 3; // Reduced from 5 to be safer with Gmail limits
+const BATCH_SIZE = 10; // Increased from 3 for faster processing
 
 export const startEmailWorker = (transporter, logoPath) => {
   console.log('📧 Email worker started');
   
-  // Check for emails every 1 second
+  // Check for emails every 500ms for faster delivery
   setInterval(async () => {
     if (isProcessing) return;
     isProcessing = true;
@@ -19,9 +19,9 @@ export const startEmailWorker = (transporter, logoPath) => {
           { status: 'pending' },
           { 
             status: 'failed', 
-            attempts: { $lt: 5 },
-            // Retry after 1 minute (simple backoff)
-            lastAttempt: { $lt: new Date(Date.now() - 60000) } 
+            attempts: { $lt: 3 }, // Reduced retries from 5 to 3
+            // Retry after 30 seconds (faster retry)
+            lastAttempt: { $lt: new Date(Date.now() - 30000) } 
           }
         ]
       })
@@ -29,19 +29,15 @@ export const startEmailWorker = (transporter, logoPath) => {
       .limit(BATCH_SIZE);
 
       if (jobs.length > 0) {
-        // Process sequentially with a small delay to avoid "burst" detection
-        for (const job of jobs) {
-          await processJob(job, transporter, logoPath);
-          // Wait 200ms between emails to be gentle on the SMTP server
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        // Process emails in parallel for speed
+        await Promise.all(jobs.map(job => processJob(job, transporter, logoPath)));
       }
     } catch (error) {
       console.error('Email worker error:', error);
     } finally {
       isProcessing = false;
     }
-  }, 1000); // 1 second interval
+  }, 500); // Reduced from 1000ms to 500ms
 };
 
 const processJob = async (job, transporter, logoPath) => {

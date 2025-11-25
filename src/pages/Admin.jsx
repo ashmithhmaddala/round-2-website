@@ -53,6 +53,11 @@ function Admin() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState([])
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [flagCache, setFlagCache] = useState(() => {
+    // Load flag cache from localStorage on init
+    const saved = localStorage.getItem('admin_flag_cache')
+    return saved ? JSON.parse(saved) : {}
+  })
   const navigate = useNavigate()
   const { socket } = useSocket()
 
@@ -210,7 +215,9 @@ function Admin() {
   const handleEditChallenge = (challenge) => {
     setEditingId(challenge.id)
     setShowForm(true)
-    setFormData({ ...challenge, points: challenge.points.toString(), flag: '' })
+    // Get flag from cache if available
+    const cachedFlag = flagCache[challenge.id] || ''
+    setFormData({ ...challenge, points: challenge.points.toString(), flag: cachedFlag })
   }
 
   const handleSaveChallenge = async (e) => {
@@ -229,6 +236,10 @@ function Admin() {
       // Only include flag if provided (for create or update)
       if (formData.flag) {
         challengeData.flag = formData.flag
+        // Cache the flag locally
+        const newCache = { ...flagCache, [formData.id]: formData.flag }
+        setFlagCache(newCache)
+        localStorage.setItem('admin_flag_cache', JSON.stringify(newCache))
       }
 
       if (editingId) {
@@ -252,6 +263,11 @@ function Admin() {
     if (!confirm('Delete this challenge?')) return
     try {
       await deleteChallenge(id)
+      // Remove flag from cache
+      const newCache = { ...flagCache }
+      delete newCache[id]
+      setFlagCache(newCache)
+      localStorage.setItem('admin_flag_cache', JSON.stringify(newCache))
       await loadData()
       showMessage('Challenge deleted!', 'success')
     } catch (error) {
@@ -949,12 +965,12 @@ function Admin() {
                   </div>
                   
                   <div className="form-field">
-                    <label>Flag {editingId && <span style={{ fontSize: '0.85em', color: '#64748b', fontWeight: 'normal' }}>(leave empty to keep current)</span>}</label>
+                    <label>Flag {editingId && formData.flag && <span style={{ fontSize: '0.85em', color: '#10b981', fontWeight: 'normal' }}>✓ loaded from cache</span>}</label>
                     <input 
                       type="text" 
                       value={formData.flag} 
                       onChange={(e) => setFormData({ ...formData, flag: e.target.value })} 
-                      placeholder={editingId ? "Leave empty to keep existing flag" : "CTF{...}"}
+                      placeholder={editingId ? "Enter new flag to update (or leave empty to keep current)" : "CTF{...}"}
                       required={!editingId}
                     />
                   </div>

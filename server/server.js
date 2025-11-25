@@ -1477,10 +1477,15 @@ app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), 
 
     await logAction('UPLOAD_FILE', 'admin', 'admin', `Uploaded file: ${req.file.originalname} for challenge ${req.params.id}`, req);
 
+    // Fetch updated challenge and broadcast
+    const updatedChallenge = await Challenge.findOne({ id: req.params.id });
+    io.emit('challenge:updated', { challenge: updatedChallenge });
+
     res.json({
       success: true,
       message: 'File uploaded successfully',
-      file: fileMetadata
+      file: fileMetadata,
+      challenge: updatedChallenge
     });
   } catch (error) {
     await logAction('ERROR', 'system', 'system', `File upload error: ${error.message}`, req);
@@ -1568,9 +1573,14 @@ app.delete('/api/challenges/:id/files/:filename', authenticateAdmin, async (req,
 
     await logAction('DELETE_FILE', 'admin', 'admin', `Deleted file: ${fileMetadata.originalName} from challenge ${req.params.id}`, req);
 
+    // Fetch updated challenge and broadcast
+    const updatedChallenge = await Challenge.findOne({ id: req.params.id });
+    io.emit('challenge:updated', { challenge: updatedChallenge });
+
     res.json({
       success: true,
-      message: 'File deleted successfully'
+      message: 'File deleted successfully',
+      challenge: updatedChallenge
     });
   } catch (error) {
     await logAction('ERROR', 'system', 'system', `File delete error: ${error.message}`, req);

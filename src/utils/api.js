@@ -4,9 +4,11 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/ap
 // Helper to get admin headers with JWT
 const getAdminHeaders = () => {
   const token = localStorage.getItem('adminToken');
+  const adminUsername = localStorage.getItem('currentAdminUsername');
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : ''
+    'Authorization': token ? `Bearer ${token}` : '',
+    'x-admin-username': adminUsername || 'unknown'
   };
 };
 

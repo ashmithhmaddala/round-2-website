@@ -62,8 +62,7 @@ const challengeSchema = new mongoose.Schema({
   }
 });
 
-// Performance indexes
-challengeSchema.index({ id: 1 }); // Unique already creates index
+// Performance indexes (unique fields already have indexes from unique: true)
 challengeSchema.index({ visible: 1 });
 challengeSchema.index({ disabled: 1 });
 challengeSchema.index({ category: 1 });

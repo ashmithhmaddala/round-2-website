@@ -51,9 +51,7 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Performance indexes
-userSchema.index({ username: 1 }); // Unique already creates index, but explicit is better
-userSchema.index({ email: 1 });
+// Performance indexes (unique fields already have indexes from unique: true)
 userSchema.index({ teamId: 1 });
 userSchema.index({ isVerified: 1 });
 userSchema.index({ banned: 1 });

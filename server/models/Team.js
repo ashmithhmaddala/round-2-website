@@ -36,8 +36,7 @@ const teamSchema = new mongoose.Schema({
   }
 });
 
-// Performance indexes
-teamSchema.index({ code: 1 }); // Unique already creates index
+// Performance indexes (unique fields already have indexes from unique: true)
 teamSchema.index({ score: -1 }); // Descending for leaderboard
 teamSchema.index({ lastSolveTime: 1 }); // For tie-breaking
 

@@ -671,6 +671,7 @@ body {
     color: #e5e7eb;
     line-height: 1.6;
     font-size: 14px;
+    white-space: pre-wrap;
 }
 
 .flag-display {

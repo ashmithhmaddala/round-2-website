@@ -777,6 +777,7 @@ button .fas, button .far {
     line-height: 1.6;
     min-height: 60px;
     font-size: 0.95rem;
+    white-space: pre-wrap;
 }
 
 .challenge-footer {
@@ -923,6 +924,7 @@ button .fas, button .far {
     margin: 0;
     line-height: 1.6;
     font-size: 0.95rem;
+    white-space: pre-wrap;
 }
 
 .input-hint {

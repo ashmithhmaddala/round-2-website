@@ -1088,7 +1088,8 @@ app.delete('/api/teams/:code', async (req, res) => {
 // Get all challenges
 app.get('/api/challenges', async (req, res) => {
   try {
-    const challenges = await Challenge.find().select('-flag');
+    // Explicitly exclude sensitive fields and ensure files are included
+    const challenges = await Challenge.find().select('-flagHash -flag').lean();
     res.json(challenges);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1422,24 +1423,38 @@ const upload = multer({
 });
 
 // Upload file for a challenge (admin)
-app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), async (req, res) => {
+app.post('/api/challenges/:id/files', authenticateAdmin, (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Multer upload error:', err);
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    await logAction('UPLOAD_DEBUG', 'admin', 'admin', `[START] Starting upload for challenge ${req.params.id}`, req);
+    
     if (!req.file) {
+      await logAction('UPLOAD_FAILED', 'admin', 'admin', '[ERROR] No file provided', req);
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
     // Check if GridFS is initialized
     if (!gfsBucket) {
+      await logAction('UPLOAD_FAILED', 'admin', 'admin', '[ERROR] GridFS not initialized', req);
       return res.status(500).json({ error: 'File storage not initialized. Please restart the server.' });
     }
 
     const challenge = await Challenge.findOne({ id: req.params.id });
     if (!challenge) {
+      await logAction('UPLOAD_FAILED', 'admin', 'admin', `[ERROR] Challenge not found: ${req.params.id}`, req);
       return res.status(404).json({ error: 'Challenge not found' });
     }
 
     // Create a unique filename
     const filename = `${Date.now()}-${req.file.originalname}`;
+    await logAction('UPLOAD_DEBUG', 'admin', 'admin', `[PROCESS] Processing file: ${filename}`, req);
 
     // Create upload stream to GridFS
     const uploadStream = gfsBucket.openUploadStream(filename, {
@@ -1458,6 +1473,8 @@ app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), 
       uploadStream.on('finish', resolve);
       uploadStream.on('error', reject);
     });
+    
+    await logAction('UPLOAD_DEBUG', 'admin', 'admin', `[GRIDFS] File written to GridFS with ID: ${uploadStream.id}`, req);
 
     // Add file metadata to challenge
     const fileMetadata = {
@@ -1470,10 +1487,12 @@ app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), 
     };
 
     // Update challenge with new file (using updateOne to avoid validation issues)
-    await Challenge.updateOne(
+    const updateResult = await Challenge.updateOne(
       { id: req.params.id },
       { $push: { files: fileMetadata } }
     );
+    
+    await logAction('UPLOAD_DEBUG', 'admin', 'admin', `[DB_UPDATE] Challenge update result: ${JSON.stringify(updateResult)}`, req);
 
     await logAction('UPLOAD_FILE', 'admin', 'admin', `Uploaded file: ${req.file.originalname} for challenge ${req.params.id}`, req);
 
@@ -1488,6 +1507,7 @@ app.post('/api/challenges/:id/files', authenticateAdmin, upload.single('file'), 
       challenge: updatedChallenge
     });
   } catch (error) {
+    console.error('[UPLOAD] Error:', error);
     await logAction('ERROR', 'system', 'system', `File upload error: ${error.message}`, req);
     res.status(500).json({ error: error.message });
   }
@@ -1944,36 +1964,7 @@ app.get('/api/admin/analytics', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Temporary in-memory log storage for demonstration
-const logs = [];
 
-// Middleware to log requests
-app.use((req, res, next) => {
-  const logEntry = {
-    method: req.method,
-    url: req.url,
-    timestamp: new Date().toISOString(),
-  };
-  logs.push(logEntry);
-  console.log(logEntry);
-  next();
-});
-
-// Initialize sample logs during server startup
-logs.push(
-  { method: 'GET', url: '/api/teams', timestamp: new Date().toISOString() },
-  { method: 'POST', url: '/api/challenges/submit', timestamp: new Date().toISOString() },
-  { method: 'GET', url: '/api/logs', timestamp: new Date().toISOString() }
-);
-
-// Add a test log entry
-logs.push({ method: 'TEST', url: '/api/test', timestamp: new Date().toISOString() });
-
-// Debugging logs for `/api/logs` endpoint
-app.get('/api/logs', (req, res) => {
-  console.log('Logs requested:', logs);
-  res.json(logs);
-});
 
 // Migration endpoint - Add email to existing users (ONE-TIME USE)
 app.post('/api/admin/migrate-add-emails', authenticateAdmin, requireSuperAdmin, async (req, res) => {

@@ -227,6 +227,7 @@
   line-height: 1.6;
   font-size: 0.9375rem;
   flex: 1;
+  white-space: pre-wrap;
 }
 
 .challenge-footer {
@@ -429,6 +430,7 @@
   color: var(--text);
   line-height: 1.6;
   font-size: 0.9375rem;
+  white-space: pre-wrap;
 }
 
 .input-group {

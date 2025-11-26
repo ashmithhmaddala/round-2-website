@@ -874,6 +874,11 @@ function Challenges() {
                   : "Press Enter or click Submit to validate your flag"}
               </small>
             </div>
+            {message.text && (
+              <div className={`message ${message.type}`} style={{ marginBottom: '1rem', padding: '10px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', border: '1px solid var(--text-dim)' }}>
+                {message.text}
+              </div>
+            )}
             <button 
               onClick={handleSubmitFlag} 
               className="btn btn-primary"

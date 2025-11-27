@@ -206,7 +206,7 @@ function Login() {
 
             <button 
               type="button" 
-              onClick={() => window.location.href = `${API_URL}/auth/google`}
+              onClick={() => window.location.href = `${API_URL}/api/auth/google`}
               style={{
                 display: 'flex',
                 alignItems: 'center',

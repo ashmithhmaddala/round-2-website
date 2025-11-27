@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test</title>
+</head>
+<body>
+    <h1>OAuth Debug Test</h1>
+    <button onclick="testOAuth()">Test Google OAuth</button>
+    <div id="result"></div>
+    <script>
+        function testOAuth() {
+            const API_URL = 'https://round-2-website.onrender.com/api';
+            document.getElementById('result').innerHTML = 'Redirecting to: ' + API_URL + '/auth/google';
+            setTimeout(() => {
+                window.location.href = API_URL + '/auth/google';
+            }, 1000);
+        }
+
+        // Check if we got a token back
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const error = urlParams.get('error');
+            
+            if (token) {
+                document.getElementById('result').innerHTML = 
+                    '<h2>SUCCESS! Got token:</h2><pre>' + token + '</pre>' +
+                    '<p>Now verifying...</p>';
+                
+                fetch(API_URL + '/auth/verify', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('result').innerHTML += 
+                        '<h3>Verify Response:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(err => {
+                    document.getElementById('result').innerHTML += 
+                        '<h3>Verify Error:</h3><pre>' + err.message + '</pre>';
+                });
+            }
+            
+            if (error) {
+                document.getElementById('result').innerHTML = 
+                    '<h2>ERROR:</h2><pre>' + error + '</pre>';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -43,7 +43,7 @@ function Dashboard() {
     if (token) {
       console.log('Dashboard: Token found in URL, verifying...')
       // Verify token and set user
-      fetch(`${API_URL}/api/auth/verify`, {
+      fetch(`${API_URL}/auth/verify`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

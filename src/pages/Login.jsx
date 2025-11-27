@@ -72,7 +72,7 @@ function Login() {
       console.log('Token received from OAuth callback, verifying...')
       // Token received from Google OAuth callback
       // The backend already set the cookie, just verify user
-      fetch(`${API_URL}/api/auth/verify`, {
+      fetch(`${API_URL}/auth/verify`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -206,7 +206,7 @@ function Login() {
 
             <button 
               type="button" 
-              onClick={() => window.location.href = `${API_URL}/api/auth/google`}
+              onClick={() => window.location.href = `${API_URL}/auth/google`}
               style={{
                 display: 'flex',
                 alignItems: 'center',

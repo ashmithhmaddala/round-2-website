@@ -406,7 +406,12 @@ function Challenges() {
     }
 
     try {
-      const result = await submitFlag(currentChallenge.id, flagInput, currentUser, teamData.code)
+      console.log('Submitting flag:', { 
+        challengeId: currentChallenge.id, 
+        flag: flagInput, 
+        username: currentUser 
+      });
+      const result = await submitFlag(currentChallenge.id, flagInput, currentUser)
       if (result.success) {
         const updatedTeam = await getTeam(teamData.code)
         setTeamData(updatedTeam)
@@ -419,6 +424,7 @@ function Challenges() {
         showMessage(result.message || 'Incorrect flag. Try again!', 'error')
       }
     } catch (error) {
+      console.error('Flag submission error:', error);
       if (error.message && error.message.toLowerCase().includes('too many')) {
         showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
       } else {

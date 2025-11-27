@@ -21,9 +21,18 @@ function Login() {
 
   // Redirect if already logged in
   useEffect(() => {
+    // Don't redirect if we're processing OAuth callback
+    const urlParams = new URLSearchParams(window.location.search)
+    const token = urlParams.get('token')
+    if (token) {
+      console.log('OAuth token in URL, skipping auth check')
+      return // Let the OAuth useEffect handle it
+    }
+
     const checkAuth = () => {
       const username = getCurrentUser()
       if (username) {
+        console.log('User already logged in, redirecting to dashboard')
         navigate('/dashboard', { replace: true })
       }
     }

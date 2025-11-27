@@ -41,21 +41,29 @@ function Dashboard() {
     const token = urlParams.get('token')
     
     if (token) {
+      console.log('Dashboard: Token found in URL, verifying...')
       // Verify token and set user
-      fetch(`${API_URL}/auth/verify`, {
+      fetch(`${API_URL}/api/auth/verify`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
-        .then(res => res.json())
+        .then(res => {
+          console.log('Dashboard: Verify response status:', res.status)
+          return res.json()
+        })
         .then(data => {
+          console.log('Dashboard: Verify response data:', data)
           if (data.username) {
             setCurrentUser(data.username)
             checkTeamStatus(data.username)
+          } else {
+            console.error('Dashboard: No username in response')
+            navigate('/login', { replace: true })
           }
         })
         .catch(err => {
-          console.error('Token verification failed:', err)
+          console.error('Dashboard: Token verification failed:', err)
           navigate('/login', { replace: true })
         })
         .finally(() => {

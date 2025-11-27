@@ -587,7 +587,7 @@ app.post('/api/teams/create', async (req, res) => {
       name: teamName,
       code: teamCode,
       members: [username],
-      captain: username
+      createdBy: username
     });
 
     await team.save();

@@ -111,14 +111,12 @@ export const getChallenges = async () => {
 };
 
 export const submitFlag = async (challengeId, flag, username) => {
-  console.log('API submitFlag called with:', { challengeId, flag, username });
   const response = await fetch(`${API_URL}/challenges/${challengeId}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flag, username })
   });
   const data = await response.json();
-  console.log('API response:', data);
   if (!response.ok) throw new Error(data.error);
   return data;
 };

@@ -279,7 +279,7 @@ function Admin() {
     try {
       await toggleChallengeVisibility(challengeId)
       await loadData()
-      const challenge = challenges.find(c => c.id === challengeId)
+      const challenge = Array.isArray(challenges) ? challenges.find(c => c.id === challengeId) : null
       showMessage(`Challenge ${challenge?.visible ? 'hidden' : 'shown'}!`, 'success')
     } catch (error) {
       showMessage('Failed to toggle visibility: ' + error.message, 'error')
@@ -328,7 +328,7 @@ function Admin() {
     try {
       await toggleChallengeDisabled(challengeId)
       await loadData()
-      const challenge = challenges.find(c => c.id === challengeId)
+      const challenge = Array.isArray(challenges) ? challenges.find(c => c.id === challengeId) : null
       showMessage(`Challenge ${challenge?.disabled ? 'enabled' : 'disabled'}!`, 'success')
     } catch (error) {
       showMessage('Failed to toggle disabled status: ' + error.message, 'error')
@@ -432,13 +432,14 @@ function Admin() {
     showMessage('Secure password generated!', 'success')
   }
 
-  const currentUserRole = admins.find(a => a.username === localStorage.getItem('currentAdminUsername'))?.role
+  const currentUserRole = Array.isArray(admins) ? admins.find(a => a.username === localStorage.getItem('currentAdminUsername'))?.role : undefined
 
-  const teamArray = teams || []
+  const teamArray = Array.isArray(teams) ? teams : []
   const totalPlayers = teamArray.reduce((sum, team) => sum + (team.members?.length || 0), 0)
-  const totalChallenges = challenges.length
-  const osintChallenges = challenges.filter(ch => ch.category === 'osint').length
-  const cryptoChallenges = challenges.filter(ch => ch.category === 'crypto').length
+  const challengeArray = Array.isArray(challenges) ? challenges : []
+  const totalChallenges = challengeArray.length
+  const osintChallenges = challengeArray.filter(ch => ch.category === 'osint').length
+  const cryptoChallenges = challengeArray.filter(ch => ch.category === 'crypto').length
   const totalSolved = teamArray.reduce((sum, team) => sum + team.solvedChallenges.length, 0)
   const avgScore = teamArray.length > 0 ? Math.round(teamArray.reduce((sum, team) => sum + team.score, 0) / teamArray.length) : 0
   const topTeam = teamArray.length > 0 ? [...teamArray].sort((a, b) => b.score - a.score)[0] : null
@@ -825,7 +826,7 @@ function Admin() {
                       <td>
                         {user.teamId ? (
                           <span className="team-code">
-                            {teams.find(t => t.code === user.teamId)?.name || user.teamId}
+                            {Array.isArray(teams) ? teams.find(t => t.code === user.teamId)?.name || user.teamId : user.teamId}
                           </span>
                         ) : (
                           <span style={{ color: '#9ca3af' }}>No Team</span>
@@ -1029,7 +1030,7 @@ function Admin() {
                           </div>
                         )}
 
-                        {challenges.find(c => c.id === editingId)?.files?.length > 0 && (
+                        {Array.isArray(challenges) && challenges.find(c => c.id === editingId)?.files?.length > 0 && (
                           <div className="file-list-section">
                             <div className="file-list-header">
                               <FaFileAlt />
@@ -1076,7 +1077,7 @@ function Admin() {
                           </div>
                         )}
 
-                        {!challenges.find(c => c.id === editingId)?.files?.length && !selectedFiles.length && (
+                        {(!Array.isArray(challenges) || !challenges.find(c => c.id === editingId)?.files?.length) && !selectedFiles.length && (
                           <div className="empty-files-state">
                             <FaFileAlt />
                             <p>No files uploaded yet. Choose files to get started.</p>
@@ -1462,7 +1463,7 @@ function Admin() {
                 <h3>Solved Challenges</h3>
                 <div className="solved-challenges">
                   {selectedTeam.solvedChallenges.map((chId, idx) => {
-                    const challenge = challenges.find(c => c.id === chId)
+                    const challenge = Array.isArray(challenges) ? challenges.find(c => c.id === chId) : null
                     return challenge ? (
                       <div key={idx} className="solved-badge">
                         <FaCheckCircle /> {challenge.title}
@@ -1534,7 +1535,7 @@ function Admin() {
                 <h3>Solved By ({selectedChallenge.solvedBy.length} teams)</h3>
                 <div className="solved-by-list">
                   {selectedChallenge.solvedBy.map((teamCode, idx) => {
-                    const team = teams.find(t => t.code === teamCode)
+                    const team = Array.isArray(teams) ? teams.find(t => t.code === teamCode) : null
                     return team ? (
                       <div key={idx} className="solved-by-item">
                         <FaTrophy />

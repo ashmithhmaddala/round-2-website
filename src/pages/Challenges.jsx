@@ -67,7 +67,7 @@ function Challenges() {
 
   // Effect to handle modal state when challenge status changes
   useEffect(() => {
-    if (modalOpen && currentChallenge) {
+    if (modalOpen && currentChallenge && Array.isArray(challenges)) {
       const updatedChallenge = challenges.find(c => c.id === currentChallenge.id)
       
       // If challenge was hidden or disabled while modal is open

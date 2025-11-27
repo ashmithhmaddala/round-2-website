@@ -377,6 +377,8 @@ app.get('/api/auth/google/callback',
   (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     try {
+      console.log('Google OAuth Callback - User:', req.user?.username, 'Profile Complete:', req.user?.isProfileComplete);
+      
       // Generate JWT
       const token = jwt.sign(
         { userId: req.user._id, username: req.user.username, isAdmin: false },
@@ -384,18 +386,22 @@ app.get('/api/auth/google/callback',
         { expiresIn: '24h' }
       );
 
-      // Redirect to frontend
+      console.log('Generated token for user:', req.user.username);
+
       // If profile is not complete, redirect to completion page
       if (!req.user.isProfileComplete) {
+        console.log('Redirecting to complete-profile');
         return res.redirect(`${frontendUrl}/complete-profile?token=${token}`);
       }
 
       // If user already has a team, go straight to dashboard
       if (req.user.teamId) {
+        console.log('Redirecting to dashboard with team');
         return res.redirect(`${frontendUrl}/dashboard?token=${token}`);
       }
 
       // No team yet, still go to dashboard where they can create/join
+      console.log('Redirecting to dashboard');
       res.redirect(`${frontendUrl}/dashboard?token=${token}`);
     } catch (error) {
       console.error('Callback Error:', error);

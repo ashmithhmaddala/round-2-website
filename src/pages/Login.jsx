@@ -53,12 +53,14 @@ function Login() {
     const error = urlParams.get('error')
     
     if (error) {
+      console.error('OAuth Error:', error)
       showMessage('Google sign-in failed. Please try again.', 'error')
       window.history.replaceState({}, '', '/login')
       return
     }
     
     if (token) {
+      console.log('Token received from OAuth callback, verifying...')
       // Token received from Google OAuth callback
       // The backend already set the cookie, just verify user
       fetch(`${API_URL}/api/auth/verify`, {
@@ -66,19 +68,27 @@ function Login() {
           'Authorization': `Bearer ${token}`
         }
       })
-        .then(res => res.json())
+        .then(res => {
+          console.log('Verify response status:', res.status)
+          return res.json()
+        })
         .then(data => {
+          console.log('Verify response data:', data)
           if (data.username) {
             setCurrentUser(data.username)
             showMessage('Successfully signed in with Google!', 'success')
+            // Clear URL before navigating
+            window.history.replaceState({}, '', '/login')
             setTimeout(() => navigate('/dashboard', { replace: true }), 500)
+          } else {
+            console.error('No username in response:', data)
+            showMessage('Sign-in verification failed', 'error')
+            window.history.replaceState({}, '', '/login')
           }
         })
         .catch(err => {
           console.error('Token verification failed:', err)
           showMessage('Sign-in verification failed', 'error')
-        })
-        .finally(() => {
           window.history.replaceState({}, '', '/login')
         })
     }

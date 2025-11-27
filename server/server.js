@@ -1335,11 +1335,20 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
       Log.find().sort({ timestamp: -1 }).limit(10).lean()
     ]);
     
+    // Calculate active teams (teams with activity in last 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const activeTeams = teams.filter(team => 
+      team.lastSolveTime && new Date(team.lastSolveTime) > fiveMinutesAgo
+    ).length;
+    
     const analytics = {
       totalTeams: teams.length,
       totalUsers: users.length,
+      totalPlayers: users.length,
       totalChallenges: challenges.length,
       activeChallenges: challenges.filter(ch => ch.visible && !ch.disabled).length,
+      visibleChallenges: challenges.filter(ch => ch.visible && !ch.disabled).length,
+      activeTeams: activeTeams,
       totalSolves: teams.reduce((sum, team) => sum + (team.solvedChallenges?.length || 0), 0),
       averageScore: teams.length > 0 ? Math.round(teams.reduce((sum, team) => sum + team.score, 0) / teams.length) : 0,
       recentActivity: recentLogs.map(log => ({

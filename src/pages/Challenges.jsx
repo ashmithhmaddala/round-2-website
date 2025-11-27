@@ -421,8 +421,12 @@ function Challenges() {
     } catch (error) {
       if (error.message && error.message.toLowerCase().includes('too many')) {
         showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
+      } else if (error.message && error.message.toLowerCase().includes('incorrect flag')) {
+        showMessage('❌ Incorrect flag! Try again.', 'error')
+      } else if (error.message && error.message.toLowerCase().includes('already solved')) {
+        showMessage('✅ Your team has already solved this challenge!', 'info')
       } else {
-        showMessage('Error submitting flag: ' + error.message, 'error')
+        showMessage(error.message || 'Error submitting flag. Please try again.', 'error')
       }
     }
   }
@@ -869,7 +873,19 @@ function Challenges() {
             )}
             
             {message.text && modalOpen && (
-              <div className={`message ${message.type}`} style={{ marginBottom: '1rem', padding: '12px', borderRadius: '8px', fontSize: '0.95rem', textAlign: 'center', border: '1px solid var(--text-dim)', fontWeight: '500' }}>
+              <div className={`message ${message.type}`} style={{ 
+                marginBottom: '1rem', 
+                padding: '14px 16px', 
+                borderRadius: '8px', 
+                fontSize: '1rem', 
+                textAlign: 'center', 
+                border: '2px solid',
+                borderColor: message.type === 'error' ? '#ff4444' : message.type === 'success' ? '#4CAF50' : message.type === 'warning' ? '#ff9800' : '#2196F3',
+                backgroundColor: message.type === 'error' ? 'rgba(255, 68, 68, 0.1)' : message.type === 'success' ? 'rgba(76, 175, 80, 0.1)' : message.type === 'warning' ? 'rgba(255, 152, 0, 0.1)' : 'rgba(33, 150, 243, 0.1)',
+                color: message.type === 'error' ? '#ff4444' : message.type === 'success' ? '#4CAF50' : message.type === 'warning' ? '#ff9800' : '#2196F3',
+                fontWeight: '600',
+                animation: 'fadeIn 0.3s ease-in'
+              }}>
                 {message.text}
               </div>
             )}

@@ -156,7 +156,7 @@ export const deleteChallenge = async (id) => {
 // Upload file to challenge
 export const uploadChallengeFile = async (challengeId, file) => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('files', file);
   
   const token = localStorage.getItem('adminToken');
   const headers = {};
@@ -164,7 +164,7 @@ export const uploadChallengeFile = async (challengeId, file) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}/challenges/${challengeId}/files`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/files`, {
     method: 'POST',
     headers: headers,
     body: formData // Don't set Content-Type header, browser will set it with boundary
@@ -176,7 +176,7 @@ export const uploadChallengeFile = async (challengeId, file) => {
 
 // Delete file from challenge
 export const deleteChallengeFile = async (challengeId, filename) => {
-  const response = await fetch(`${API_URL}/challenges/${challengeId}/files/${filename}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/files/${filename}`, {
     method: 'DELETE',
     headers: getAdminHeaders()
   });
@@ -187,7 +187,8 @@ export const deleteChallengeFile = async (challengeId, filename) => {
 
 // Get file download URL
 export const getChallengeFileUrl = (challengeId, filename) => {
-  return `${API_URL}/challenges/${challengeId}/files/${filename}`;
+  const baseUrl = API_URL.replace('/api', '');
+  return `${baseUrl}/uploads/${filename}`;
 };
 
 // ==================== ADMIN ====================

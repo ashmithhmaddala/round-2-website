@@ -312,50 +312,65 @@ const requireSuperAdmin = async (req, res, next) => {
 };
 
 // Passport Config
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback"
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      // Check if user exists
-      let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: profile.emails[0].value }] });
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/api/auth/google/callback",
+      proxy: true // Important for Render/Heroku to handle https correctly
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Check if user exists
+        let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: profile.emails[0].value }] });
 
-      if (user) {
-        // If user exists but no googleId (signed up with email/password), link account
-        if (!user.googleId) {
-          user.googleId = profile.id;
-          user.isVerified = true; // Trust Google verification
-          await user.save();
+        if (user) {
+          // If user exists but no googleId (signed up with email/password), link account
+          if (!user.googleId) {
+            user.googleId = profile.id;
+            user.isVerified = true; // Trust Google verification
+            await user.save();
+          }
+          return done(null, user);
         }
+
+        // If user doesn't exist, create new one
+        // We need a temporary username because it's required
+        const tempUsername = `user_${profile.id.slice(0, 8)}`;
+        
+        user = await User.create({
+          username: tempUsername,
+          email: profile.emails[0].value,
+          googleId: profile.id,
+          isVerified: true,
+          isProfileComplete: false // Flag to prompt for username selection
+        });
+
         return done(null, user);
+      } catch (error) {
+        return done(error, null);
       }
-
-      // If user doesn't exist, create new one
-      // We need a temporary username because it's required
-      const tempUsername = `user_${profile.id.slice(0, 8)}`;
-      
-      user = await User.create({
-        username: tempUsername,
-        email: profile.emails[0].value,
-        googleId: profile.id,
-        isVerified: true,
-        isProfileComplete: false // Flag to prompt for username selection
-      });
-
-      return done(null, user);
-    } catch (error) {
-      return done(error, null);
     }
-  }
-));
+  ));
+} else {
+  console.warn('⚠️ Google OAuth credentials not found. Google Auth will be disabled.');
+}
 
 // Google Auth Routes
-app.get('/api/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+app.get('/api/auth/google', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(503).json({ error: 'Google Authentication is not configured.' });
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
 app.get('/api/auth/google/callback', 
-  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.redirect('/login?error=GoogleAuthNotConfigured');
+    }
+    passport.authenticate('google', { session: false, failureRedirect: '/login' })(req, res, next);
+  },
   (req, res) => {
     // Generate JWT
     const token = jwt.sign(
@@ -367,7 +382,8 @@ app.get('/api/auth/google/callback',
     // Redirect to frontend
     // If profile is not complete, redirect to completion page
     const redirectPath = req.user.isProfileComplete ? '/dashboard' : '/complete-profile';
-    res.redirect(`${process.env.FRONTEND_URL}${redirectPath}?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
   }
 );
 

@@ -26,8 +26,18 @@ function Dashboard() {
   const { socket } = useSocket()
 
   useEffect(() => {
+    // Check for OAuth token first before doing auth check
+    const urlParams = new URLSearchParams(window.location.search)
+    const token = urlParams.get('token')
+    
+    if (token) {
+      console.log('Dashboard: OAuth token detected, skipping normal auth check')
+      return // Let the OAuth useEffect handle it
+    }
+
     const username = getCurrentUser()
     if (!username) {
+      console.log('Dashboard: No user found, redirecting to login')
       navigate('/', { replace: true })
       return
     }

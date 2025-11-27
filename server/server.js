@@ -675,6 +675,79 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   }
 });
 
+// ==================== COMPETITION ROUTES ====================
+
+// Get competition (public)
+app.get('/api/competition', async (req, res) => {
+  try {
+    let competition = await Competition.findOne();
+    if (!competition) {
+      competition = new Competition({
+        name: 'Cache Me If You Can',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: 'upcoming'
+      });
+      await competition.save();
+    }
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get competition (admin)
+app.get('/api/admin/competition', authenticateAdmin, async (req, res) => {
+  try {
+    let competition = await Competition.findOne();
+    if (!competition) {
+      competition = new Competition({
+        name: 'Cache Me If You Can',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: 'upcoming'
+      });
+      await competition.save();
+    }
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update competition
+app.put('/api/admin/competition', authenticateAdmin, async (req, res) => {
+  try {
+    const { name, startTime, endTime, status } = req.body;
+    let competition = await Competition.findOne();
+    
+    if (!competition) {
+      competition = new Competition({ name, startTime, endTime, status });
+    } else {
+      if (name) competition.name = name;
+      if (startTime) competition.startTime = startTime;
+      if (endTime) competition.endTime = endTime;
+      if (status) competition.status = status;
+    }
+    
+    await competition.save();
+    
+    await logAction('UPDATE_COMPETITION', req.admin.username, 'admin', `Updated competition settings`, req);
+    
+    // Emit competition update via socket
+    if (io) {
+      io.emit('competition:updated', { competition });
+      if (status) {
+        io.emit('competition:status', { status, competition });
+      }
+    }
+    
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize MongoDB connection and Passport
 console.log('🔌 Connecting to MongoDB...');
 mongoose.connect(process.env.MONGODB_URI)

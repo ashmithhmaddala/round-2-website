@@ -427,6 +427,24 @@ function Challenges() {
     }
   }
 
+  const handleDownloadFile = async (file, challengeId) => {
+    try {
+      const url = getChallengeFileUrl(challengeId, file.filename)
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = file.originalName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      showMessage('Error downloading file: ' + error.message, 'error')
+    }
+  }
+
   const getChallengesByCategory = (category) => {
     return challenges.filter(ch => ch.category === category && ch.visible !== false)
   }
@@ -821,11 +839,11 @@ function Challenges() {
                 </h4>
                 <div className="modal-files-list">
                   {currentChallenge.files.map((file, idx) => (
-                    <a
+                    <button
                       key={idx}
-                      href={getChallengeFileUrl(currentChallenge.id, file.filename)}
-                      download={file.originalName}
+                      onClick={() => handleDownloadFile(file, currentChallenge.id)}
                       className="modal-file-item"
+                      type="button"
                     >
                       <div className="file-item-content">
                         <div className="file-icon">
@@ -844,7 +862,7 @@ function Challenges() {
                       <div className="file-download-icon">
                         <FaDownload />
                       </div>
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>

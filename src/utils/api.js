@@ -111,10 +111,10 @@ export const getChallenges = async () => {
 };
 
 export const submitFlag = async (challengeId, flag, username, teamCode) => {
-  const response = await fetch(`${API_URL}/challenges/submit`, {
+  const response = await fetch(`${API_URL}/challenges/${challengeId}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ challengeId, flag, username, teamCode })
+    body: JSON.stringify({ flag, username, teamCode })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaLock, FaGlobe, FaCode } from 'react-icons/fa'
-import { signup, login, setCurrentUser, getCurrentUser } from '../utils/api'
+import { FcGoogle } from 'react-icons/fc';
+import { signup, login, setCurrentUser, getCurrentUser, API_URL } from '../utils/api'
 import logo from '../assets/cseh_final_logo.png'
 
 function Login() {
@@ -144,6 +145,39 @@ function Login() {
             <div className="auth-header">
               <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
               <p>{isLogin ? 'Enter your credentials to access your dashboard.' : 'Start your journey into OSINT today.'}</p>
+            </div>
+
+            <button 
+              type="button" 
+              onClick={() => window.location.href = `${API_URL}/auth/google`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                width: '100%',
+                padding: '12px',
+                marginBottom: '20px',
+                backgroundColor: 'white',
+                color: '#333',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '0.95rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
+            >
+              <FcGoogle size={20} />
+              {isLogin ? 'Sign in with Google' : 'Sign up with Google'}
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0 0 20px 0', color: '#94a3b8' }}>
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }}></div>
+              <span style={{ padding: '0 10px', fontSize: '0.85rem' }}>OR</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }}></div>
             </div>
 
             <form onSubmit={isLogin ? handleLogin : handleSignup}>

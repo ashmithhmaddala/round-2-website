@@ -25,6 +25,11 @@ EMAIL_PASS=your-gmail-app-password
 # Initial super admin password (change after first login!)
 ADMIN_PASSWORD=your-very-secure-admin-password-here
 
+# Google OAuth Configuration
+# Create credentials at: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
 # Frontend URL
 # Used for email verification and password reset links
 FRONTEND_URL=https://your-frontend-domain.com

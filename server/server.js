@@ -482,6 +482,274 @@ app.get('/api/challenges', async (req, res) => {
   }
 });
 
+// Create challenge (admin)
+app.post('/api/admin/challenges', authenticateAdmin, async (req, res) => {
+  try {
+    const { id, title, description, category, difficulty, points, flag } = req.body;
+    
+    if (!id || !title || !category || !difficulty || !points || !flag) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    const existingChallenge = await Challenge.findOne({ id });
+    if (existingChallenge) {
+      return res.status(400).json({ error: 'Challenge ID already exists' });
+    }
+    
+    const flagHash = await bcrypt.hash(flag, 10);
+    const challenge = new Challenge({
+      id,
+      title,
+      description,
+      category,
+      difficulty,
+      points,
+      flag,
+      flagHash,
+      visible: true,
+      disabled: false
+    });
+    
+    await challenge.save();
+    await logAction('CREATE_CHALLENGE', req.admin.username, 'admin', `Created challenge: ${title}`, req);
+    
+    if (io) {
+      io.emit('challenge:created', { challenge: await Challenge.findOne({ id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.status(201).json({ success: true, challenge: await Challenge.findOne({ id }).select('-flagHash -flag').lean() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update challenge (admin)
+app.put('/api/admin/challenges/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { title, description, category, difficulty, points, flag } = req.body;
+    
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    if (title) challenge.title = title;
+    if (description) challenge.description = description;
+    if (category) challenge.category = category;
+    if (difficulty) challenge.difficulty = difficulty;
+    if (points) challenge.points = points;
+    if (flag) {
+      challenge.flag = flag;
+      challenge.flagHash = await bcrypt.hash(flag, 10);
+    }
+    
+    await challenge.save();
+    await logAction('UPDATE_CHALLENGE', req.admin.username, 'admin', `Updated challenge: ${challenge.title}`, req);
+    
+    if (io) {
+      io.emit('challenge:updated', { challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.json({ success: true, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete challenge (admin)
+app.delete('/api/admin/challenges/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOneAndDelete({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    await logAction('DELETE_CHALLENGE', req.admin.username, 'admin', `Deleted challenge: ${challenge.title}`, req);
+    
+    if (io) {
+      io.emit('challenge:deleted', { id: req.params.id });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle challenge visibility (admin)
+app.patch('/api/admin/challenges/:id/visibility', authenticateAdmin, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    challenge.visible = !challenge.visible;
+    await challenge.save();
+    
+    await logAction('TOGGLE_VISIBILITY', req.admin.username, 'admin', `Toggled visibility for: ${challenge.title}`, req);
+    
+    if (io) {
+      io.emit('challenge:visibility', { challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.json({ success: true, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle challenge disabled status (admin)
+app.patch('/api/admin/challenges/:id/disabled', authenticateAdmin, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    challenge.disabled = !challenge.disabled;
+    await challenge.save();
+    
+    await logAction('TOGGLE_DISABLED', req.admin.username, 'admin', `Toggled disabled status for: ${challenge.title}`, req);
+    
+    if (io) {
+      io.emit('challenge:disabled', { challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.json({ success: true, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload files to challenge (admin)
+app.post('/api/admin/challenges/:id/files', authenticateAdmin, upload.array('files', 10), async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+    
+    const fileData = req.files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      size: file.size,
+      path: `/uploads/${file.filename}`
+    }));
+    
+    challenge.files = challenge.files || [];
+    challenge.files.push(...fileData);
+    await challenge.save();
+    
+    await logAction('UPLOAD_FILE', req.admin.username, 'admin', `Uploaded ${req.files.length} file(s) to: ${challenge.title}`, req);
+    
+    res.json({ success: true, files: fileData });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete file from challenge (admin)
+app.delete('/api/admin/challenges/:id/files/:filename', authenticateAdmin, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ id: req.params.id });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    const fileIndex = challenge.files.findIndex(f => f.filename === req.params.filename);
+    if (fileIndex === -1) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const filePath = path.join(__dirname, 'uploads', req.params.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    challenge.files.splice(fileIndex, 1);
+    await challenge.save();
+    
+    await logAction('DELETE_FILE', req.admin.username, 'admin', `Deleted file from: ${challenge.title}`, req);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Submit flag
+app.post('/api/challenges/:id/submit', async (req, res) => {
+  try {
+    const { flag, username } = req.body;
+    const challengeId = req.params.id;
+    
+    const challenge = await Challenge.findOne({ id: challengeId });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    
+    if (challenge.disabled) {
+      return res.status(403).json({ error: 'This challenge is currently disabled' });
+    }
+    
+    const user = await User.findOne({ username });
+    if (!user || !user.teamId) {
+      return res.status(400).json({ error: 'User must be in a team to submit flags' });
+    }
+    
+    const team = await Team.findOne({ code: user.teamId });
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    if (team.solvedChallenges.includes(challengeId)) {
+      return res.status(400).json({ error: 'Challenge already solved by your team' });
+    }
+    
+    const isCorrect = await bcrypt.compare(flag, challenge.flagHash);
+    if (!isCorrect) {
+      await logAction('FLAG_SUBMIT_FAIL', username, 'user', `Failed flag submission for: ${challenge.title}`, req);
+      return res.status(400).json({ error: 'Incorrect flag' });
+    }
+    
+    team.solvedChallenges.push(challengeId);
+    team.score += challenge.points;
+    team.lastSolveTime = new Date();
+    await team.save();
+    
+    challenge.solvedBy = challenge.solvedBy || [];
+    challenge.solvedBy.push(user.teamId);
+    await challenge.save();
+    
+    const solve = new Solve({
+      teamCode: user.teamId,
+      challengeId,
+      username,
+      points: challenge.points
+    });
+    await solve.save();
+    
+    await logAction('FLAG_SUBMIT_SUCCESS', username, 'user', `Solved: ${challenge.title}`, req);
+    
+    if (io) {
+      io.emit('challenge:solved', { 
+        teamCode: user.teamId, 
+        challengeId, 
+        team: await Team.findOne({ code: user.teamId }).lean() 
+      });
+    }
+    
+    res.json({ success: true, message: 'Correct flag!', points: challenge.points });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== AUTH ROUTES ====================
 
 // User Signup
@@ -653,6 +921,31 @@ app.get('/api/teams/:code', async (req, res) => {
   }
 });
 
+// Delete team (admin)
+app.delete('/api/admin/teams/:code', authenticateAdmin, async (req, res) => {
+  try {
+    const team = await Team.findOne({ code: req.params.code });
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Remove team reference from all users
+    await User.updateMany({ teamId: req.params.code }, { $unset: { teamId: '' } });
+    
+    await Team.findOneAndDelete({ code: req.params.code });
+    
+    await logAction('DELETE_TEAM', req.admin.username, 'admin', `Deleted team: ${team.name}`, req);
+    
+    if (io) {
+      io.emit('team:deleted', { teamCode: req.params.code });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== ADMIN MANAGEMENT ROUTES ====================
 
 // Get all admins
@@ -665,11 +958,134 @@ app.get('/api/admin/admins', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Create admin (super admin only)
+app.post('/api/admin/admins', authenticateAdmin, async (req, res) => {
+  try {
+    const { username, email, password, role } = req.body;
+    
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    const existingAdmin = await Admin.findOne({ $or: [{ username }, { email }] });
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin username or email already exists' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = new Admin({
+      username,
+      email,
+      password: hashedPassword,
+      role: role || 'moderator'
+    });
+    
+    await admin.save();
+    await logAction('CREATE_ADMIN', req.admin.username, 'admin', `Created admin: ${username}`, req);
+    
+    res.status(201).json({ success: true, admin: { username, email, role: admin.role } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete admin (super admin only)
+app.delete('/api/admin/admins/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const admin = await Admin.findByIdAndDelete(req.params.id);
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    await logAction('DELETE_ADMIN', req.admin.username, 'admin', `Deleted admin: ${admin.username}`, req);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Change admin password
+app.patch('/api/admin/admins/:id/password', authenticateAdmin, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+    
+    const admin = await Admin.findById(req.params.id);
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    admin.password = await bcrypt.hash(newPassword, 10);
+    await admin.save();
+    
+    await logAction('CHANGE_ADMIN_PASSWORD', req.admin.username, 'admin', `Changed password for: ${admin.username}`, req);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all users
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete user (admin)
+app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Remove user from team
+    if (user.teamId) {
+      await Team.updateOne(
+        { code: user.teamId },
+        { $pull: { members: user.username } }
+      );
+    }
+    
+    await logAction('DELETE_USER', req.admin.username, 'admin', `Deleted user: ${user.username}`, req);
+    
+    if (io) {
+      io.emit('user:deleted', { username: user.username });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle user ban (admin)
+app.patch('/api/admin/users/:id/ban', authenticateAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.banned = !user.banned;
+    await user.save();
+    
+    await logAction('TOGGLE_BAN', req.admin.username, 'admin', `${user.banned ? 'Banned' : 'Unbanned'}: ${user.username}`, req);
+    
+    if (io) {
+      io.emit('user:banned', { username: user.username, banned: user.banned });
+    }
+    
+    res.json({ success: true, user: { ...user.toObject(), password: undefined } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

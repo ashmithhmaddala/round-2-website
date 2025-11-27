@@ -748,6 +748,95 @@ app.put('/api/admin/competition', authenticateAdmin, async (req, res) => {
   }
 });
 
+// ==================== ANNOUNCEMENTS ROUTES ====================
+
+// Get all announcements (public)
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const announcements = await Announcement.find()
+      .sort({ pinned: -1, createdAt: -1 })
+      .lean();
+    res.json({ announcements });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all announcements (admin)
+app.get('/api/admin/announcements', authenticateAdmin, async (req, res) => {
+  try {
+    const announcements = await Announcement.find()
+      .sort({ pinned: -1, createdAt: -1 })
+      .lean();
+    res.json({ announcements });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create announcement
+app.post('/api/admin/announcements', authenticateAdmin, async (req, res) => {
+  try {
+    const { title, message, type, priority, pinned, expiresAt } = req.body;
+    
+    const announcement = new Announcement({
+      title,
+      message,
+      type: type || 'info',
+      priority: priority || 'normal',
+      pinned: pinned || false,
+      expiresAt: expiresAt || null
+    });
+    
+    await announcement.save();
+    await logAction('CREATE_ANNOUNCEMENT', req.admin.username, 'admin', `Created announcement: ${title}`, req);
+    
+    if (io) {
+      io.emit('announcement:created', { announcement });
+    }
+    
+    res.status(201).json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete announcement
+app.delete('/api/admin/announcements/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const announcement = await Announcement.findByIdAndDelete(req.params.id);
+    if (!announcement) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+    
+    await logAction('DELETE_ANNOUNCEMENT', req.admin.username, 'admin', `Deleted announcement: ${announcement.title}`, req);
+    
+    if (io) {
+      io.emit('announcement:deleted', { id: req.params.id });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== LOGS ROUTES ====================
+
+// Get logs (admin only)
+app.get('/api/admin/logs', authenticateAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const logs = await Log.find()
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ logs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize MongoDB connection and Passport
 console.log('🔌 Connecting to MongoDB...');
 mongoose.connect(process.env.MONGODB_URI)

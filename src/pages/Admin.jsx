@@ -173,10 +173,10 @@ function Admin() {
         getAllAdmins(),
         getAllUsers()
       ])
-      setTeams(teamsData)
-      setChallenges(challengesData)
-      setAdmins(adminsData)
-      setUsers(usersData)
+      setTeams(Array.isArray(teamsData) ? teamsData : [])
+      setChallenges(Array.isArray(challengesData) ? challengesData : [])
+      setAdmins(Array.isArray(adminsData) ? adminsData : [])
+      setUsers(Array.isArray(usersData) ? usersData : [])
       setLastUpdated(new Date())
     } catch (error) {
       if (!silent) showMessage('Failed to load data: ' + error.message, 'error')
@@ -451,7 +451,7 @@ function Admin() {
   )
 
   // Filtered challenges
-  const filteredChallenges = challenges.filter(ch => {
+  const filteredChallenges = challengeArray.filter(ch => {
     const matchesSearch = ch.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ch.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = filterCategory === 'all' || ch.category === filterCategory
@@ -473,7 +473,7 @@ function Admin() {
   };
 
   // 2. Challenge Solves (Top 10 Most Solved)
-  const sortedChallenges = [...challenges].sort((a, b) => (b.solvedBy?.length || 0) - (a.solvedBy?.length || 0)).slice(0, 10);
+  const sortedChallenges = [...challengeArray].sort((a, b) => (b.solvedBy?.length || 0) - (a.solvedBy?.length || 0)).slice(0, 10);
   const challengeSolvesData = {
     labels: sortedChallenges.map(c => c.title),
     datasets: [{
@@ -820,7 +820,7 @@ function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(user => (
+                  {Array.isArray(users) && users.map(user => (
                     <tr key={user._id}>
                       <td><strong>{user.username}</strong></td>
                       <td>

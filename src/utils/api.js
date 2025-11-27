@@ -111,13 +111,16 @@ export const getChallenges = async () => {
 };
 
 export const submitFlag = async (challengeId, flag, username) => {
+  console.log('🔍 Submitting:', { challengeId, flag, username });
   const response = await fetch(`${API_URL}/challenges/${challengeId}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flag, username })
   });
+  console.log('📡 Response status:', response.status);
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error);
+  console.log('📦 Response data:', data);
+  if (!response.ok) throw new Error(data.error || data.message || 'Unknown error');
   return data;
 };
 

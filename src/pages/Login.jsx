@@ -46,6 +46,44 @@ function Login() {
     }
   }, [navigate])
 
+  // Handle Google OAuth token from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const token = urlParams.get('token')
+    const error = urlParams.get('error')
+    
+    if (error) {
+      showMessage('Google sign-in failed. Please try again.', 'error')
+      window.history.replaceState({}, '', '/login')
+      return
+    }
+    
+    if (token) {
+      // Token received from Google OAuth callback
+      // The backend already set the cookie, just verify user
+      fetch(`${API_URL}/auth/verify`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.username) {
+            setCurrentUser(data.username)
+            showMessage('Successfully signed in with Google!', 'success')
+            setTimeout(() => navigate('/dashboard', { replace: true }), 500)
+          }
+        })
+        .catch(err => {
+          console.error('Token verification failed:', err)
+          showMessage('Sign-in verification failed', 'error')
+        })
+        .finally(() => {
+          window.history.replaceState({}, '', '/login')
+        })
+    }
+  }, [navigate])
+
   const showMessage = (text, type) => {
     setMessage({ text, type })
     setTimeout(() => setMessage({ text: '', type: '' }), 3000)

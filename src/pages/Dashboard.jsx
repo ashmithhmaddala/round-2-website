@@ -35,6 +35,35 @@ function Dashboard() {
     checkTeamStatus(username)
   }, [navigate])
 
+  // Handle Google OAuth token from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const token = urlParams.get('token')
+    
+    if (token) {
+      // Verify token and set user
+      fetch(`${API_URL}/auth/verify`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.username) {
+            setCurrentUser(data.username)
+            checkTeamStatus(data.username)
+          }
+        })
+        .catch(err => {
+          console.error('Token verification failed:', err)
+          navigate('/login', { replace: true })
+        })
+        .finally(() => {
+          window.history.replaceState({}, '', '/dashboard')
+        })
+    }
+  }, [navigate])
+
   // Fetch competition data once - socket handles updates
   useEffect(() => {
     fetchCompetition()

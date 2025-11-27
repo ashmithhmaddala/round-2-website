@@ -820,6 +820,27 @@ app.get('/api/auth/user/:username', async (req, res) => {
   }
 });
 
+// Verify JWT token
+app.get('/api/auth/verify', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ username: user.username, userId: user._id, teamId: user.teamId });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
 // ==================== TEAMS ROUTES ====================
 
 // Get all teams

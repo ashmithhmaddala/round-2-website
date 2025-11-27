@@ -122,7 +122,7 @@ export const submitFlag = async (challengeId, flag, username, teamCode) => {
 };
 
 export const createChallenge = async (challenge) => {
-  const response = await fetch(`${API_URL}/challenges`, {
+  const response = await fetch(`${API_URL}/admin/challenges`, {
     method: 'POST',
     headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
@@ -133,7 +133,7 @@ export const createChallenge = async (challenge) => {
 };
 
 export const updateChallenge = async (id, challenge) => {
-  const response = await fetch(`${API_URL}/challenges/${id}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${id}`, {
     method: 'PUT',
     headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
@@ -144,7 +144,7 @@ export const updateChallenge = async (id, challenge) => {
 };
 
 export const deleteChallenge = async (id) => {
-  const response = await fetch(`${API_URL}/challenges/${id}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${id}`, {
     method: 'DELETE',
     headers: getAdminHeaders()
   });

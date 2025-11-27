@@ -380,23 +380,25 @@ app.get('/api/auth/google', (req, res, next) => {
 
 app.get('/api/auth/google/callback', 
   (req, res, next) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return res.redirect('/login?error=GoogleAuthNotConfigured');
+      return res.redirect(`${frontendUrl}/login?error=GoogleAuthNotConfigured`);
     }
-    passport.authenticate('google', { session: false, failureRedirect: '/login' }, (err, user, info) => {
+    passport.authenticate('google', { session: false, failureRedirect: `${frontendUrl}/login` }, (err, user, info) => {
       if (err) {
         console.error('Passport Auth Error:', err);
-        return res.redirect('/login?error=AuthFailed');
+        return res.redirect(`${frontendUrl}/login?error=AuthFailed`);
       }
       if (!user) {
         console.error('Passport Auth Failed: No user returned');
-        return res.redirect('/login?error=AuthFailed');
+        return res.redirect(`${frontendUrl}/login?error=AuthFailed`);
       }
       req.user = user;
       next();
     })(req, res, next);
   },
   (req, res) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     try {
       // Generate JWT
       const token = jwt.sign(
@@ -408,11 +410,10 @@ app.get('/api/auth/google/callback',
       // Redirect to frontend
       // If profile is not complete, redirect to completion page
       const redirectPath = req.user.isProfileComplete ? '/dashboard' : '/complete-profile';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
     } catch (error) {
       console.error('Callback Error:', error);
-      res.redirect('/login?error=CallbackFailed');
+      res.redirect(`${frontendUrl}/login?error=CallbackFailed`);
     }
   }
 );

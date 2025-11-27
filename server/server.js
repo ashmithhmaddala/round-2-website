@@ -325,8 +325,17 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        console.log('Google Auth Profile:', profile.id, profile.emails);
+        
+        if (!profile.emails || profile.emails.length === 0) {
+          console.error('No email found in Google profile');
+          return done(new Error('No email found in Google profile'), null);
+        }
+
+        const email = profile.emails[0].value;
+
         // Check if user exists
-        let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: profile.emails[0].value }] });
+        let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: email }] });
 
         if (user) {
           // If user exists but no googleId (signed up with email/password), link account
@@ -344,7 +353,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         
         user = await User.create({
           username: tempUsername,
-          email: profile.emails[0].value,
+          email: email,
           googleId: profile.id,
           isVerified: true,
           isProfileComplete: false // Flag to prompt for username selection
@@ -352,6 +361,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
         return done(null, user);
       } catch (error) {
+        console.error('Google Auth Error:', error);
         return done(error, null);
       }
     }
@@ -373,21 +383,37 @@ app.get('/api/auth/google/callback',
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       return res.redirect('/login?error=GoogleAuthNotConfigured');
     }
-    passport.authenticate('google', { session: false, failureRedirect: '/login' })(req, res, next);
+    passport.authenticate('google', { session: false, failureRedirect: '/login' }, (err, user, info) => {
+      if (err) {
+        console.error('Passport Auth Error:', err);
+        return res.redirect('/login?error=AuthFailed');
+      }
+      if (!user) {
+        console.error('Passport Auth Failed: No user returned');
+        return res.redirect('/login?error=AuthFailed');
+      }
+      req.user = user;
+      next();
+    })(req, res, next);
   },
   (req, res) => {
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: req.user._id, username: req.user.username, isAdmin: false },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    try {
+      // Generate JWT
+      const token = jwt.sign(
+        { userId: req.user._id, username: req.user.username, isAdmin: false },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
 
-    // Redirect to frontend
-    // If profile is not complete, redirect to completion page
-    const redirectPath = req.user.isProfileComplete ? '/dashboard' : '/complete-profile';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
+      // Redirect to frontend
+      // If profile is not complete, redirect to completion page
+      const redirectPath = req.user.isProfileComplete ? '/dashboard' : '/complete-profile';
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
+    } catch (error) {
+      console.error('Callback Error:', error);
+      res.redirect('/login?error=CallbackFailed');
+    }
   }
 );
 

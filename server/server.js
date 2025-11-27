@@ -461,6 +461,52 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
+// ==================== CHALLENGES ROUTES ====================
+
+// Get all challenges
+app.get('/api/challenges', async (req, res) => {
+  try {
+    const challenges = await Challenge.find().select('-flagHash -flag').lean();
+    res.json(challenges);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== TEAMS ROUTES ====================
+
+// Get all teams
+app.get('/api/teams', async (req, res) => {
+  try {
+    const teams = await Team.find().sort({ score: -1 });
+    res.json(teams);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== ADMIN MANAGEMENT ROUTES ====================
+
+// Get all admins
+app.get('/api/admin/admins', authenticateAdmin, async (req, res) => {
+  try {
+    const admins = await Admin.find().select('-password');
+    res.json({ admins });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all users
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize MongoDB connection and Passport
 console.log('🔌 Connecting to MongoDB...');
 mongoose.connect(process.env.MONGODB_URI)

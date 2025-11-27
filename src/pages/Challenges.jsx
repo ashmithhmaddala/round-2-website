@@ -714,7 +714,7 @@ function Challenges() {
 
         </div>
 
-        {message.text && (
+        {message.text && !modalOpen && (
           <div className={`message ${message.type}`} style={{ display: 'block', background: 'transparent', color: 'var(--text)', border: '1px solid var(--text-dim)' }}>
             {message.text}
           </div>
@@ -868,6 +868,12 @@ function Challenges() {
               </div>
             )}
             
+            {message.text && modalOpen && (
+              <div className={`message ${message.type}`} style={{ marginBottom: '1rem', padding: '12px', borderRadius: '8px', fontSize: '0.95rem', textAlign: 'center', border: '1px solid var(--text-dim)', fontWeight: '500' }}>
+                {message.text}
+              </div>
+            )}
+
             <div className="input-group">
               <label htmlFor="flagInput">Submit Your Flag</label>
               <input
@@ -892,11 +898,6 @@ function Challenges() {
                   : "Press Enter or click Submit to validate your flag"}
               </small>
             </div>
-            {message.text && (
-              <div className={`message ${message.type}`} style={{ marginBottom: '1rem', padding: '10px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', border: '1px solid var(--text-dim)' }}>
-                {message.text}
-              </div>
-            )}
             <button 
               onClick={handleSubmitFlag} 
               className="btn btn-primary"

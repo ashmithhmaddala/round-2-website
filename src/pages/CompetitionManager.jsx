@@ -108,7 +108,7 @@ const CompetitionManager = () => {
       }
 
       const data = await response.json();
-      setCompetition(data.competition);
+      setCompetition(data);
       setIsEditing(false);
       // Show success message (could be a toast)
     } catch (err) {
@@ -130,7 +130,7 @@ const CompetitionManager = () => {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/competition/status`, {
+      const response = await fetch(`${API_URL}/admin/competition`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ const CompetitionManager = () => {
       }
 
       const data = await response.json();
-      setCompetition(data.competition);
+      setCompetition(data);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }

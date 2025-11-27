@@ -1303,6 +1303,59 @@ app.get('/api/admin/logs', authenticateAdmin, async (req, res) => {
   }
 });
 
+// ==================== ANALYTICS ROUTES ====================
+
+// Get challenge analytics
+app.get('/api/admin/analytics/challenges', authenticateAdmin, async (req, res) => {
+  try {
+    const challenges = await Challenge.find().lean();
+    const analytics = challenges.map(ch => ({
+      id: ch.id,
+      title: ch.title,
+      category: ch.category,
+      difficulty: ch.difficulty,
+      points: ch.points,
+      solveCount: ch.solvedBy?.length || 0,
+      visible: ch.visible,
+      disabled: ch.disabled
+    }));
+    res.json({ challenges: analytics });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get realtime analytics
+app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => {
+  try {
+    const [teams, challenges, users, recentLogs] = await Promise.all([
+      Team.find().lean(),
+      Challenge.find().lean(),
+      User.find().lean(),
+      Log.find().sort({ timestamp: -1 }).limit(10).lean()
+    ]);
+    
+    const analytics = {
+      totalTeams: teams.length,
+      totalUsers: users.length,
+      totalChallenges: challenges.length,
+      activeChallenges: challenges.filter(ch => ch.visible && !ch.disabled).length,
+      totalSolves: teams.reduce((sum, team) => sum + (team.solvedChallenges?.length || 0), 0),
+      averageScore: teams.length > 0 ? Math.round(teams.reduce((sum, team) => sum + team.score, 0) / teams.length) : 0,
+      recentActivity: recentLogs.map(log => ({
+        action: log.action,
+        username: log.username,
+        timestamp: log.timestamp,
+        details: log.details
+      }))
+    };
+    
+    res.json(analytics);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize MongoDB connection and Passport
 console.log('🔌 Connecting to MongoDB...');
 mongoose.connect(process.env.MONGODB_URI)

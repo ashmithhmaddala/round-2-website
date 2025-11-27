@@ -16,6 +16,7 @@ import multer from 'multer';
 import { GridFSBucket } from 'mongodb';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
@@ -77,6 +78,31 @@ console.log(`ℹ️ Configured PORT: ${PORT}`);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-' + crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRES_IN = '8h'; // Admin session expires after 8 hours
 const MAX_TEAM_SIZE = 3; // Maximum members per team
+
+// Configure multer for file uploads
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    // Allow all file types for CTF challenges
+    cb(null, true);
+  }
+});
 
 // Socket.io connection handling with authentication
 io.use((socket, next) => {
@@ -202,6 +228,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' })); // Prevent huge payloads
 app.use(cookieParser()); // Parse cookies for JWT
 app.use(passport.initialize());
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {

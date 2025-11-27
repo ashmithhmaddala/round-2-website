@@ -386,23 +386,26 @@ app.get('/api/auth/google/callback',
         { expiresIn: '24h' }
       );
 
-      console.log('Generated token for user:', req.user.username);
+      console.log('Generated token for user:', req.user.username, 'Token length:', token.length);
 
       // If profile is not complete, redirect to completion page
       if (!req.user.isProfileComplete) {
-        console.log('Redirecting to complete-profile');
-        return res.redirect(`${frontendUrl}/complete-profile?token=${token}`);
+        const redirectUrl = `${frontendUrl}/complete-profile?token=${token}`;
+        console.log('Redirecting to complete-profile:', redirectUrl);
+        return res.redirect(redirectUrl);
       }
 
       // If user already has a team, go straight to dashboard
       if (req.user.teamId) {
-        console.log('Redirecting to dashboard with team');
-        return res.redirect(`${frontendUrl}/dashboard?token=${token}`);
+        const redirectUrl = `${frontendUrl}/dashboard?token=${token}`;
+        console.log('Redirecting to dashboard with team:', redirectUrl);
+        return res.redirect(redirectUrl);
       }
 
       // No team yet, still go to dashboard where they can create/join
-      console.log('Redirecting to dashboard');
-      res.redirect(`${frontendUrl}/dashboard?token=${token}`);
+      const redirectUrl = `${frontendUrl}/dashboard?token=${token}`;
+      console.log('Redirecting to dashboard (no team):', redirectUrl);
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error('Callback Error:', error);
       res.redirect(`${frontendUrl}/login?error=CallbackFailed`);

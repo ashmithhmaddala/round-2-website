@@ -35,6 +35,8 @@ import { startEmailWorker } from './utils/emailWorker.js';
 
 dotenv.config();
 
+console.log('🚀 Starting server initialization...');
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -70,6 +72,8 @@ const io = new Server(httpServer, {
 
 app.set('trust proxy', 1); // Trust first proxy (required for Vercel/Heroku to get real IP)
 const PORT = process.env.PORT || 5000;
+console.log(`ℹ️ Configured PORT: ${PORT}`);
+
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-' + crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRES_IN = '8h'; // Admin session expires after 8 hours
 const MAX_TEAM_SIZE = 3; // Maximum members per team
@@ -421,3 +425,45 @@ app.post('/api/auth/complete-profile', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Start server
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🔌 Socket.IO ready for real-time connections`);
+});
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+  console.log(`\n${signal} received, shutting down gracefully...`);
+  
+  // Stop accepting new connections
+  httpServer.close(async () => {
+    console.log('✅ HTTP server closed');
+    
+    // Close Socket.IO connections
+    io.close(() => {
+      console.log('✅ Socket.IO connections closed');
+    });
+    
+    // Close MongoDB connection
+    try {
+      await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
+    } catch (error) {
+      console.error('❌ Error closing MongoDB:', error);
+    }
+    
+    console.log('👋 Graceful shutdown complete');
+    process.exit(0);
+  });
+  
+  // Force shutdown if graceful shutdown takes too long
+  setTimeout(() => {
+    console.error('❌ Forceful shutdown - graceful shutdown timeout');
+    process.exit(1);
+  }, 10000); // 10 second timeout
+};
+
+// Listen for termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

@@ -822,6 +822,17 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if user signed up with Google
+    if (user.googleId && !user.password) {
+      await logAction('USER_LOGIN_FAILED', username, 'user', 'Google OAuth user attempting password login', req);
+      return res.status(400).json({ error: 'This account uses Google Sign-In. Please use the Google login button.' });
+    }
+
+    if (!user.password) {
+      await logAction('USER_LOGIN_FAILED', username, 'user', 'No password set', req);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       await logAction('USER_LOGIN_FAILED', username, 'user', 'Invalid password', req);
@@ -832,6 +843,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({ success: true, message: 'Login successful', user: { username: user.username, teamId: user.teamId } });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: error.message });
   }
 });

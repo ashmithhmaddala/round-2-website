@@ -224,7 +224,7 @@ export const getAllAdmins = async () => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
-  return data;
+  return data.admins || [];
 };
 
 export const getAllUsers = async () => {
@@ -233,7 +233,7 @@ export const getAllUsers = async () => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
-  return data;
+  return data.users || [];
 };
 
 export const toggleUserBan = async (userId) => {

@@ -25,7 +25,9 @@ const LoggingAndMonitoring = () => {
       }
       
       const data = await response.json();
-      if (Array.isArray(data)) {
+      if (data.logs && Array.isArray(data.logs)) {
+        setLogs(data.logs);
+      } else if (Array.isArray(data)) {
         setLogs(data);
       }
       setLoading(false);

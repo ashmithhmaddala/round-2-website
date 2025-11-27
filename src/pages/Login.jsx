@@ -61,7 +61,7 @@ function Login() {
     if (token) {
       // Token received from Google OAuth callback
       // The backend already set the cookie, just verify user
-      fetch(`${API_URL}/auth/verify`, {
+      fetch(`${API_URL}/api/auth/verify`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

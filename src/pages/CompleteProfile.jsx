@@ -28,7 +28,7 @@ const CompleteProfile = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/complete-profile`, {
+      const response = await fetch(`${API_URL}/api/auth/complete-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

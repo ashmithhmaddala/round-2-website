@@ -357,8 +357,17 @@ app.get('/api/auth/google/callback',
 
       // Redirect to frontend
       // If profile is not complete, redirect to completion page
-      const redirectPath = req.user.isProfileComplete ? '/dashboard' : '/complete-profile';
-      res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
+      if (!req.user.isProfileComplete) {
+        return res.redirect(`${frontendUrl}/complete-profile?token=${token}`);
+      }
+
+      // If user already has a team, go straight to dashboard
+      if (req.user.teamId) {
+        return res.redirect(`${frontendUrl}/dashboard?token=${token}`);
+      }
+
+      // No team yet, still go to dashboard where they can create/join
+      res.redirect(`${frontendUrl}/dashboard?token=${token}`);
     } catch (error) {
       console.error('Callback Error:', error);
       res.redirect(`${frontendUrl}/login?error=CallbackFailed`);
@@ -473,6 +482,76 @@ app.get('/api/challenges', async (req, res) => {
   }
 });
 
+// ==================== AUTH ROUTES ====================
+
+// User Signup
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({ username, email, password: hashedPassword, isVerified: true });
+    await user.save();
+
+    await logAction('USER_SIGNUP', username, 'user', 'User registered successfully', req);
+
+    res.status(201).json({ success: true, message: 'Account created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// User Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      await logAction('USER_LOGIN_FAILED', username, 'user', 'User not found', req);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      await logAction('USER_LOGIN_FAILED', username, 'user', 'Invalid password', req);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    await logAction('USER_LOGIN_SUCCESS', username, 'user', 'User logged in successfully', req);
+
+    res.json({ success: true, message: 'Login successful', user: { username: user.username, teamId: user.teamId } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user info
+app.get('/api/auth/user/:username', async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== TEAMS ROUTES ====================
 
 // Get all teams
@@ -480,6 +559,95 @@ app.get('/api/teams', async (req, res) => {
   try {
     const teams = await Team.find().sort({ score: -1 });
     res.json(teams);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create team
+app.post('/api/teams/create', async (req, res) => {
+  try {
+    const { teamName, username } = req.body;
+
+    if (!teamName || !username) {
+      return res.status(400).json({ error: 'Team name and username are required' });
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.teamId) {
+      return res.status(400).json({ error: 'You are already in a team' });
+    }
+
+    const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const team = new Team({
+      name: teamName,
+      code: teamCode,
+      members: [username],
+      captain: username
+    });
+
+    await team.save();
+
+    user.teamId = teamCode;
+    await user.save();
+
+    await logAction('CREATE_TEAM', username, 'user', `Created team: ${teamName} (${teamCode})`, req);
+
+    res.status(201).json({ success: true, team, teamCode });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Join team
+app.post('/api/teams/join', async (req, res) => {
+  try {
+    const { teamCode, username } = req.body;
+
+    const team = await Team.findOne({ code: teamCode });
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    if (team.members.length >= MAX_TEAM_SIZE) {
+      return res.status(400).json({ error: `Team is full (max ${MAX_TEAM_SIZE} members)` });
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.teamId) {
+      return res.status(400).json({ error: 'You are already in a team' });
+    }
+
+    team.members.push(username);
+    await team.save();
+
+    user.teamId = teamCode;
+    await user.save();
+
+    await logAction('JOIN_TEAM', username, 'user', `Joined team: ${team.name} (${teamCode})`, req);
+
+    res.json({ success: true, team });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get team by code
+app.get('/api/teams/:code', async (req, res) => {
+  try {
+    const team = await Team.findOne({ code: req.params.code });
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    res.json(team);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

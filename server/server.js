@@ -726,6 +726,10 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
     const { flag, username } = req.body;
     const challengeId = req.params.id;
     
+    if (!flag || !username) {
+      return res.status(400).json({ error: 'Flag and username are required' });
+    }
+    
     const challenge = await Challenge.findOne({ id: challengeId });
     if (!challenge) {
       return res.status(404).json({ error: 'Challenge not found' });
@@ -755,15 +759,20 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
       return res.status(400).json({ error: 'Incorrect flag' });
     }
     
+    // Correct flag - update team
     team.solvedChallenges.push(challengeId);
     team.score += challenge.points;
     team.lastSolveTime = new Date();
     await team.save();
     
-    challenge.solvedBy = challenge.solvedBy || [];
+    // Update challenge
+    if (!challenge.solvedBy) {
+      challenge.solvedBy = [];
+    }
     challenge.solvedBy.push(user.teamId);
     await challenge.save();
     
+    // Create solve record
     const solve = new Solve({
       teamCode: user.teamId,
       challengeId,
@@ -784,7 +793,8 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
     
     res.json({ success: true, message: 'Correct flag!', points: challenge.points });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Flag submission error:', error);
+    res.status(500).json({ error: 'An error occurred while processing your submission. Please try again.' });
   }
 });
 

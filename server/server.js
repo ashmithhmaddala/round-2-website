@@ -401,6 +401,66 @@ app.post('/api/auth/complete-profile', async (req, res) => {
   }
 });
 
+// ==================== ADMIN AUTH ROUTES ====================
+
+// Admin Login
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const admin = await Admin.findOne({ username });
+    if (!admin) {
+      await logAction('ADMIN_LOGIN_FAILED', username, 'admin', 'Admin not found', req);
+      return res.status(401).json({ error: 'Invalid credentials. Access denied.' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    if (!isPasswordValid) {
+      await logAction('ADMIN_LOGIN_FAILED', username, 'admin', 'Invalid password', req);
+      return res.status(401).json({ error: 'Invalid credentials. Access denied.' });
+    }
+
+    const token = jwt.sign(
+      { adminId: admin._id, username: admin.username, isAdmin: true, role: admin.role },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.cookie('adminToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000
+    });
+
+    await logAction('ADMIN_LOGIN_SUCCESS', username, 'admin', 'Admin logged in successfully', req);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      admin: {
+        username: admin.username,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+});
+
+// Admin Logout
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('adminToken');
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
 // Initialize MongoDB connection and Passport
 console.log('🔌 Connecting to MongoDB...');
 mongoose.connect(process.env.MONGODB_URI)

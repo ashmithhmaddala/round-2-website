@@ -637,8 +637,8 @@ function Dashboard() {
 
       {/* Live Announcement Pop-ups */}
       <div className="announcement-popups">
-        {announcements
-          .filter(a => visiblePopups.includes(a._id))
+        {Array.isArray(announcements) && announcements
+          .filter(a => Array.isArray(visiblePopups) && visiblePopups.includes(a._id))
           .slice(0, 3)
           .map((announcement, index) => {
             const getIcon = () => {

@@ -315,65 +315,13 @@ const requireSuperAdmin = async (req, res, next) => {
   }
 };
 
-// Passport Config
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  passport.use(new GoogleStrategy({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/google/callback",
-      proxy: true // Important for Render/Heroku to handle https correctly
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        console.log('Google Auth Profile:', profile.id, profile.emails);
-        
-        if (!profile.emails || profile.emails.length === 0) {
-          console.error('No email found in Google profile');
-          return done(new Error('No email found in Google profile'), null);
-        }
-
-        const email = profile.emails[0].value;
-
-        // Check if user exists
-        let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: email }] });
-
-        if (user) {
-          // If user exists but no googleId (signed up with email/password), link account
-          if (!user.googleId) {
-            user.googleId = profile.id;
-            user.isVerified = true; // Trust Google verification
-            await user.save();
-          }
-          return done(null, user);
-        }
-
-        // If user doesn't exist, create new one
-        // We need a temporary username because it's required
-        const tempUsername = `user_${profile.id.slice(0, 8)}`;
-        
-        user = await User.create({
-          username: tempUsername,
-          email: email,
-          googleId: profile.id,
-          isVerified: true,
-          isProfileComplete: false // Flag to prompt for username selection
-        });
-
-        return done(null, user);
-      } catch (error) {
-        console.error('Google Auth Error:', error);
-        return done(error, null);
-      }
-    }
-  ));
-} else {
-  console.warn('⚠️ Google OAuth credentials not found. Google Auth will be disabled.');
-}
+// Passport Config - will be initialized after MongoDB connects
+let isGoogleAuthConfigured = false;
 
 // Google Auth Routes
 app.get('/api/auth/google', (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(503).json({ error: 'Google Authentication is not configured.' });
+  if (!isGoogleAuthConfigured) {
+    return res.status(503).json({ error: 'Google Authentication is not configured or MongoDB is not connected yet.' });
   }
   passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
 });
@@ -381,7 +329,7 @@ app.get('/api/auth/google', (req, res, next) => {
 app.get('/api/auth/google/callback', 
   (req, res, next) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    if (!isGoogleAuthConfigured) {
       return res.redirect(`${frontendUrl}/login?error=GoogleAuthNotConfigured`);
     }
     passport.authenticate('google', { session: false, failureRedirect: `${frontendUrl}/login` }, (err, user, info) => {
@@ -452,6 +400,69 @@ app.post('/api/auth/complete-profile', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Initialize MongoDB connection and Passport
+console.log('🔌 Connecting to MongoDB...');
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB Atlas');
+    
+    // Initialize Passport Google Strategy AFTER MongoDB is connected
+    if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+      passport.use(new GoogleStrategy({
+          clientID: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          callbackURL: "/api/auth/google/callback",
+          proxy: true
+        },
+        async (accessToken, refreshToken, profile, done) => {
+          try {
+            console.log('Google Auth Profile:', profile.id, profile.emails);
+            
+            if (!profile.emails || profile.emails.length === 0) {
+              console.error('No email found in Google profile');
+              return done(new Error('No email found in Google profile'), null);
+            }
+
+            const email = profile.emails[0].value;
+            let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: email }] });
+
+            if (user) {
+              if (!user.googleId) {
+                user.googleId = profile.id;
+                user.isVerified = true;
+                await user.save();
+              }
+              return done(null, user);
+            }
+
+            const tempUsername = `user_${profile.id.slice(0, 8)}`;
+            user = await User.create({
+              username: tempUsername,
+              email: email,
+              googleId: profile.id,
+              isVerified: true,
+              isProfileComplete: false
+            });
+
+            return done(null, user);
+          } catch (error) {
+            console.error('Google Auth Error:', error);
+            return done(error, null);
+          }
+        }
+      ));
+      isGoogleAuthConfigured = true;
+      console.log('✅ Google OAuth configured');
+    } else {
+      console.warn('⚠️ Google OAuth credentials not found. Google Auth will be disabled.');
+    }
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+    console.error('💡 Check your MONGODB_URI environment variable');
+    process.exit(1);
+  });
 
 // Start server
 httpServer.listen(PORT, () => {

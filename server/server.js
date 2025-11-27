@@ -772,12 +772,10 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
     challenge.solvedBy.push(user.teamId);
     await challenge.save();
     
-    // Create solve record
+    // Create solve record with ObjectIds
     const solve = new Solve({
-      teamCode: user.teamId,
-      challengeId,
-      username,
-      points: challenge.points
+      team: team._id,
+      challenge: challenge._id
     });
     await solve.save();
     

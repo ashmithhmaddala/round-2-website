@@ -233,8 +233,8 @@ function Admin() {
         description: formData.description
       }
 
-      // Only include flag if provided (for create or update)
-      if (formData.flag) {
+      // Only include flag if provided and not empty (for create or update)
+      if (formData.flag && formData.flag.trim() !== '') {
         challengeData.flag = formData.flag
         // Cache the flag locally
         const newCache = { ...flagCache, [formData.id]: formData.flag }

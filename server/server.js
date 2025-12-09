@@ -595,12 +595,14 @@ app.put('/api/admin/challenges/:id', authenticateAdmin, async (req, res) => {
     if (difficulty !== undefined) challenge.difficulty = difficulty;
     if (points !== undefined) challenge.points = points;
     
-    // Only update flag and flagHash if a new flag is provided
-    if (flag !== undefined && flag !== '') {
+    // Only update flag and flagHash if a new flag is provided (and not empty)
+    if (flag && flag.trim() !== '') {
       challenge.flagHash = await bcrypt.hash(flag, 10);
     }
+    // If flag is not provided or is empty, keep the existing flagHash - don't modify it
     
-    await challenge.save();
+    // Save with validation - flagHash already exists so validation will pass
+    await challenge.save({ validateModifiedOnly: true });
     await logAction('UPDATE_CHALLENGE', req.admin.username, 'admin', `Updated challenge: ${challenge.title}`, req);
     
     if (io) {

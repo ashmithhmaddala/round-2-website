@@ -449,11 +449,24 @@ export const getCurrentUser = () => {
       return null;
     }
     
-    // Update last activity time
+    // Update last activity time whenever user is retrieved
     updateLastActivity();
     return username;
   } catch (error) {
-    // Handle legacy format (plain string) or corrupted data
+    // Handle legacy format (plain string) - don't logout, just try to use it
+    if (typeof sessionData === 'string') {
+      // Could be a plain username string from old format
+      try {
+        const username = sessionData.replace(/"/g, '');
+        if (username && !username.includes('{')) {
+          // It's a plain string username, convert to new format
+          setCurrentUser(username);
+          return username;
+        }
+      } catch (e) {
+        // Fall through to removal
+      }
+    }
     localStorage.removeItem('currentUser');
     return null;
   }

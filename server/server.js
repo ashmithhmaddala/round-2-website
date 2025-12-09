@@ -577,13 +577,15 @@ app.put('/api/admin/challenges/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Challenge not found' });
     }
     
-    if (title) challenge.title = title;
-    if (description) challenge.description = description;
-    if (category) challenge.category = category;
-    if (difficulty) challenge.difficulty = difficulty;
-    if (points) challenge.points = points;
-    if (flag) {
-      challenge.flag = flag;
+    // Update fields if provided
+    if (title !== undefined) challenge.title = title;
+    if (description !== undefined) challenge.description = description;
+    if (category !== undefined) challenge.category = category;
+    if (difficulty !== undefined) challenge.difficulty = difficulty;
+    if (points !== undefined) challenge.points = points;
+    
+    // Only update flag and flagHash if a new flag is provided
+    if (flag !== undefined && flag !== '') {
       challenge.flagHash = await bcrypt.hash(flag, 10);
     }
     
@@ -596,6 +598,7 @@ app.put('/api/admin/challenges/:id', authenticateAdmin, async (req, res) => {
     
     res.json({ success: true, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
   } catch (error) {
+    console.error('Challenge update error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -93,8 +93,9 @@ export const getAllTeams = async () => {
 };
 
 export const deleteTeam = async (code) => {
-  const response = await fetch(`${API_URL}/teams/${code}`, {
-    method: 'DELETE'
+  const response = await fetch(`${API_URL}/admin/teams/${code}`, {
+    method: 'DELETE',
+    headers: getAdminHeaders()
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);

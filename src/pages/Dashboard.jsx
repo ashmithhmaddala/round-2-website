@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaUsers, FaUserPlus, FaCopy, FaRocket, FaSignOutAlt, FaTrophy, FaChartLine, FaClock, FaTimes, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTimesCircle, FaBell, FaMedal } from 'react-icons/fa'
-import { getCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam, API_URL } from '../utils/api'
+import { getCurrentUser, setCurrentUser as saveCurrentUser, logout, getUser, createTeam, joinTeam, getTeam, leaveTeam, API_URL } from '../utils/api'
 import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import './Dashboard.css'
@@ -65,6 +65,8 @@ function Dashboard() {
         .then(data => {
           console.log('Dashboard: Verify response data:', data)
           if (data.username) {
+            // Save to localStorage so getCurrentUser() works
+            saveCurrentUser(data.username)
             setCurrentUser(data.username)
             checkTeamStatus(data.username)
           } else {

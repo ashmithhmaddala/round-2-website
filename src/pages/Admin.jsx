@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FaShieldAlt, FaUsers, FaPuzzlePiece, FaChartLine, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTrophy, FaClock, FaCheckCircle, FaFilter, FaSearch, FaBroadcastTower, FaBullhorn, FaBan, FaPlay, FaUpload, FaDownload, FaTimes, FaFileAlt, FaInfoCircle, FaFileAudio, FaFileVideo, FaFileImage, FaFileCode, FaFileArchive, FaFilePdf, FaFile } from 'react-icons/fa'
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Bar, Doughnut } from 'react-chartjs-2'
-import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled, uploadChallengeFile, deleteChallengeFile, getChallengeFileUrl, getAllUsers, deleteUser, toggleUserBan } from '../utils/api'
+import { getAllTeams, deleteTeam, getChallenges, createChallenge, updateChallenge, deleteChallenge, setAdminAuth, getAdminAuth, getAllAdmins, createAdmin, deleteAdmin, changePassword, resetPassword, toggleChallengeVisibility, toggleChallengeDisabled, uploadChallengeFile, deleteChallengeFile, getChallengeFileUrl, getAllUsers, deleteUser, toggleUserBan, resetChallengeStats } from '../utils/api'
 import { useSocket } from '../context/SocketContext'
 import logo from '../assets/cseh_final_logo.png'
 import RealTimeMonitoring from './RealTimeMonitoring'
@@ -332,6 +332,51 @@ function Admin() {
       showMessage(`Challenge ${challenge?.disabled ? 'enabled' : 'disabled'}!`, 'success')
     } catch (error) {
       showMessage('Failed to toggle disabled status: ' + error.message, 'error')
+    }
+  }
+
+  const handleResetStats = async () => {
+    const confirmed = confirm(
+      '⚠️ WARNING: This will reset ALL challenge statistics!\n\n' +
+      'This action will:\n' +
+      '• Reset all challenge solve counts to 0\n' +
+      '• Remove all first blood records\n' +
+      '• Delete all solve records\n' +
+      '• Reset all team scores to 0\n' +
+      '• Clear all user progress\n\n' +
+      'This action CANNOT be undone!\n\n' +
+      'Are you absolutely sure you want to continue?'
+    )
+    
+    if (!confirmed) return
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      '⚠️ FINAL CONFIRMATION\n\n' +
+      'You are about to permanently delete all competition progress.\n' +
+      'Type "RESET" in the next prompt to confirm.'
+    )
+    
+    if (!doubleConfirm) return
+
+    const userInput = prompt('Type "RESET" (in capitals) to confirm:')
+    if (userInput !== 'RESET') {
+      showMessage('Reset cancelled - confirmation text did not match', 'info')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const result = await resetChallengeStats()
+      await loadData()
+      showMessage(
+        `✅ All statistics reset successfully! Deleted ${result.deletedSolves} solve records.`,
+        'success'
+      )
+    } catch (error) {
+      showMessage('Failed to reset stats: ' + error.message, 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -889,10 +934,16 @@ function Admin() {
                   </select>
                 </div>
               </div>
-              <button onClick={handleAddChallenge} className="btn-add-challenge">
-                <FaPlus />
-                <span>Create Challenge</span>
-              </button>
+              <div className="toolbar-actions">
+                <button onClick={handleResetStats} className="btn-reset-stats" title="Reset all challenge statistics">
+                  <FaSync />
+                  <span>Reset All Stats</span>
+                </button>
+                <button onClick={handleAddChallenge} className="btn-add-challenge">
+                  <FaPlus />
+                  <span>Create Challenge</span>
+                </button>
+              </div>
             </div>
 
             {showForm && (

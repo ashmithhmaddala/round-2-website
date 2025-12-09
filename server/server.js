@@ -740,6 +740,55 @@ app.delete('/api/admin/challenges/:id/files/:filename', authenticateAdmin, async
   }
 });
 
+// Reset all challenge stats (solves, points, first blood)
+app.post('/api/admin/challenges/reset-stats', authenticateAdmin, async (req, res) => {
+  try {
+    // Reset all challenges
+    await Challenge.updateMany({}, {
+      $set: {
+        solves: 0,
+        firstBlood: null,
+        solvedBy: []
+      }
+    });
+
+    // Delete all solve records
+    const deleteResult = await Solve.deleteMany({});
+
+    // Reset all user solved challenges
+    await User.updateMany({}, {
+      $set: {
+        solvedChallenges: []
+      }
+    });
+
+    // Reset all team scores
+    await Team.updateMany({}, {
+      $set: {
+        score: 0,
+        solvedChallenges: []
+      }
+    });
+
+    await logAction('RESET_CHALLENGE_STATS', req.admin.username, 'admin', `Reset all challenge statistics. Deleted ${deleteResult.deletedCount} solve records`, req);
+
+    // Emit real-time update to all connected clients
+    io.emit('stats-reset', {
+      message: 'All challenge statistics have been reset',
+      timestamp: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'All challenge statistics reset successfully',
+      deletedSolves: deleteResult.deletedCount
+    });
+  } catch (error) {
+    console.error('Reset stats error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Submit flag
 app.post('/api/challenges/:id/submit', async (req, res) => {
   try {

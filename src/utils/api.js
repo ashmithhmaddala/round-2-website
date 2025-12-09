@@ -195,6 +195,17 @@ export const getChallengeFileUrl = (challengeId, filename) => {
   return `${baseUrl}/uploads/${filename}`;
 };
 
+// Reset all challenge statistics
+export const resetChallengeStats = async () => {
+  const response = await fetch(`${API_URL}/admin/challenges/reset-stats`, {
+    method: 'POST',
+    headers: getAdminHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+};
+
 // ==================== ADMIN ====================
 
 export const adminLogin = async (username, password) => {

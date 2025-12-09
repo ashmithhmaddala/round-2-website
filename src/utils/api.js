@@ -359,7 +359,7 @@ export const getSolveTimeline = async () => {
 };
 
 export const toggleChallengeVisibility = async (challengeId) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/toggle-visibility`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/visibility`, {
     method: 'PATCH',
     headers: getAdminHeaders()
   });
@@ -369,7 +369,7 @@ export const toggleChallengeVisibility = async (challengeId) => {
 };
 
 export const toggleChallengeDisabled = async (challengeId) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/toggle-disabled`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/disabled`, {
     method: 'PATCH',
     headers: getAdminHeaders()
   });

@@ -113,7 +113,7 @@ export const getChallenges = async () => {
 
 export const submitFlag = async (challengeId, flag, username) => {
   console.log('🔍 Submitting:', { challengeId, flag, username });
-  const response = await fetch(`${API_URL}/challenges/${challengeId}/submit`, {
+  const response = await fetch(`${API_URL}/challenges/${encodeURIComponent(challengeId)}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flag, username })
@@ -144,7 +144,7 @@ export const createChallenge = async (challenge) => {
 };
 
 export const updateChallenge = async (id, challenge) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${id}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
@@ -162,7 +162,7 @@ export const updateChallenge = async (id, challenge) => {
 };
 
 export const deleteChallenge = async (id) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${id}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: getAdminHeaders()
   });
@@ -182,7 +182,7 @@ export const uploadChallengeFile = async (challengeId, file) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/files`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/files`, {
     method: 'POST',
     headers: headers,
     body: formData // Don't set Content-Type header, browser will set it with boundary
@@ -194,7 +194,7 @@ export const uploadChallengeFile = async (challengeId, file) => {
 
 // Delete file from challenge
 export const deleteChallengeFile = async (challengeId, filename) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/files/${filename}`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/files/${encodeURIComponent(filename)}`, {
     method: 'DELETE',
     headers: getAdminHeaders()
   });
@@ -359,7 +359,7 @@ export const getSolveTimeline = async () => {
 };
 
 export const toggleChallengeVisibility = async (challengeId) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-visibility`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/toggle-visibility`, {
     method: 'PATCH',
     headers: getAdminHeaders()
   });
@@ -369,7 +369,7 @@ export const toggleChallengeVisibility = async (challengeId) => {
 };
 
 export const toggleChallengeDisabled = async (challengeId) => {
-  const response = await fetch(`${API_URL}/admin/challenges/${challengeId}/toggle-disabled`, {
+  const response = await fetch(`${API_URL}/admin/challenges/${encodeURIComponent(challengeId)}/toggle-disabled`, {
     method: 'PATCH',
     headers: getAdminHeaders()
   });

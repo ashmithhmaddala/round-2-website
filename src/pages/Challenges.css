@@ -408,6 +408,9 @@
   color: var(--text);
   margin-bottom: var(--s2);
   padding-right: var(--s6);
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .modal-badges {
@@ -452,6 +455,9 @@
   line-height: 1.6;
   font-size: 0.9375rem;
   white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .input-group {

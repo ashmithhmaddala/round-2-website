@@ -131,8 +131,15 @@ export const createChallenge = async (challenge) => {
     headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
   });
+  
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error(`Server returned ${response.status} - Expected JSON but got ${contentType || 'unknown'}. Check if backend server is running.`);
+  }
+  
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error);
+  if (!response.ok) throw new Error(data.error || `Server error: ${response.status}`);
   return data;
 };
 
@@ -142,8 +149,15 @@ export const updateChallenge = async (id, challenge) => {
     headers: getAdminHeaders(),
     body: JSON.stringify(challenge)
   });
+  
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error(`Server returned ${response.status} - Expected JSON but got ${contentType || 'unknown'}. Check if backend server is running.`);
+  }
+  
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error);
+  if (!response.ok) throw new Error(data.error || `Server error: ${response.status}`);
   return data;
 };
 

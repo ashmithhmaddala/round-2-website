@@ -559,7 +559,6 @@ app.post('/api/admin/challenges', authenticateAdmin, async (req, res) => {
       category,
       difficulty,
       points,
-      flag,
       flagHash,
       visible: true,
       disabled: false
@@ -574,6 +573,7 @@ app.post('/api/admin/challenges', authenticateAdmin, async (req, res) => {
     
     res.status(201).json({ success: true, challenge: await Challenge.findOne({ id }).select('-flagHash -flag').lean() });
   } catch (error) {
+    console.error('Create challenge error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -698,7 +698,7 @@ app.post('/api/admin/challenges/:id/files', authenticateAdmin, upload.array('fil
       filename: file.filename,
       originalName: file.originalname,
       size: file.size,
-      path: `/uploads/${file.filename}`
+      mimetype: file.mimetype
     }));
     
     challenge.files = challenge.files || [];
@@ -707,8 +707,14 @@ app.post('/api/admin/challenges/:id/files', authenticateAdmin, upload.array('fil
     
     await logAction('UPLOAD_FILE', req.admin.username, 'admin', `Uploaded ${req.files.length} file(s) to: ${challenge.title}`, req);
     
-    res.json({ success: true, files: fileData });
+    // Emit socket event to update all clients
+    if (io) {
+      io.emit('challenge:updated', { challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.json({ success: true, files: fileData, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
   } catch (error) {
+    console.error('File upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -736,8 +742,14 @@ app.delete('/api/admin/challenges/:id/files/:filename', authenticateAdmin, async
     
     await logAction('DELETE_FILE', req.admin.username, 'admin', `Deleted file from: ${challenge.title}`, req);
     
-    res.json({ success: true });
+    // Emit socket event to update all clients
+    if (io) {
+      io.emit('challenge:updated', { challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
+    }
+    
+    res.json({ success: true, challenge: await Challenge.findOne({ id: req.params.id }).select('-flagHash -flag').lean() });
   } catch (error) {
+    console.error('File delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });

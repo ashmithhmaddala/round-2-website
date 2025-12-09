@@ -645,7 +645,7 @@ app.patch('/api/admin/challenges/:id/visibility', authenticateAdmin, async (req,
     }
     
     challenge.visible = !challenge.visible;
-    await challenge.save();
+    await challenge.save({ validateModifiedOnly: true });
     
     await logAction('TOGGLE_VISIBILITY', req.admin.username, 'admin', `Toggled visibility for: ${challenge.title}`, req);
     
@@ -668,7 +668,7 @@ app.patch('/api/admin/challenges/:id/disabled', authenticateAdmin, async (req, r
     }
     
     challenge.disabled = !challenge.disabled;
-    await challenge.save();
+    await challenge.save({ validateModifiedOnly: true });
     
     await logAction('TOGGLE_DISABLED', req.admin.username, 'admin', `Toggled disabled status for: ${challenge.title}`, req);
     
@@ -703,7 +703,7 @@ app.post('/api/admin/challenges/:id/files', authenticateAdmin, upload.array('fil
     
     challenge.files = challenge.files || [];
     challenge.files.push(...fileData);
-    await challenge.save();
+    await challenge.save({ validateModifiedOnly: true });
     
     await logAction('UPLOAD_FILE', req.admin.username, 'admin', `Uploaded ${req.files.length} file(s) to: ${challenge.title}`, req);
     
@@ -732,7 +732,7 @@ app.delete('/api/admin/challenges/:id/files/:filename', authenticateAdmin, async
     }
     
     challenge.files.splice(fileIndex, 1);
-    await challenge.save();
+    await challenge.save({ validateModifiedOnly: true });
     
     await logAction('DELETE_FILE', req.admin.username, 'admin', `Deleted file from: ${challenge.title}`, req);
     

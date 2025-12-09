@@ -853,14 +853,21 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
       challenge.solvedBy = [];
     }
     challenge.solvedBy.push(user.teamId);
-    await challenge.save();
+    await challenge.save({ validateModifiedOnly: true });
     
     // Create solve record with ObjectIds
-    const solve = new Solve({
-      team: team._id,
-      challenge: challenge._id
-    });
-    await solve.save();
+    try {
+      const solve = new Solve({
+        team: team._id,
+        challenge: challenge._id
+      });
+      await solve.save();
+    } catch (solveError) {
+      // Ignore duplicate solve errors (shouldn't happen due to earlier check, but just in case)
+      if (solveError.code !== 11000) {
+        console.error('Error creating solve record:', solveError);
+      }
+    }
     
     await logAction('FLAG_SUBMIT_SUCCESS', username, 'user', `Solved: ${challenge.title}`, req);
     
@@ -875,6 +882,12 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
     res.json({ success: true, message: 'Correct flag!', points: challenge.points });
   } catch (error) {
     console.error('Flag submission error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      challengeId: req.params.id,
+      username: req.body.username,
+      errorMessage: error.message
+    });
     res.status(500).json({ error: 'An error occurred while processing your submission. Please try again.' });
   }
 });

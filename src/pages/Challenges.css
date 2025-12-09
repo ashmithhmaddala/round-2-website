@@ -357,9 +357,9 @@
   border-radius: var(--r-lg);
   width: 90%;
   max-width: 600px;
-  max-height: 85vh;
-  padding: var(--s4);
-  padding-bottom: var(--s6);
+  max-height: 75vh;
+  padding: var(--s3);
+  padding-bottom: var(--s5);
   position: relative;
   animation: modalSlide 200ms ease;
   overflow-y: auto;

@@ -379,6 +379,12 @@ app.get('/api/auth/google/callback',
     try {
       console.log('Google OAuth Callback - User:', req.user?.username, 'Profile Complete:', req.user?.isProfileComplete);
       
+      // Check if user is banned
+      if (req.user?.banned) {
+        console.log('Banned user attempted Google OAuth login:', req.user.username);
+        return res.redirect(`${frontendUrl}/login?error=AccountBanned`);
+      }
+
       // Generate JWT
       const token = jwt.sign(
         { userId: req.user._id, username: req.user.username, isAdmin: false },
@@ -424,6 +430,11 @@ app.post('/api/auth/complete-profile', async (req, res) => {
     const user = await User.findById(decoded.userId);
     
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Check if user is banned
+    if (user.banned) {
+      return res.status(403).json({ error: 'Your account has been banned. Please contact support.' });
+    }
     
     // Check if username is taken
     const existingUser = await User.findOne({ username });
@@ -848,6 +859,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if user is banned
+    if (user.banned) {
+      await logAction('USER_LOGIN_FAILED', username, 'user', 'Banned user attempted login', req);
+      return res.status(403).json({ error: 'Your account has been banned. Please contact support.' });
+    }
+
     // Check if user signed up with Google
     if (user.googleId && !user.password) {
       await logAction('USER_LOGIN_FAILED', username, 'user', 'Google OAuth user attempting password login', req);
@@ -881,6 +898,10 @@ app.get('/api/auth/user/:username', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    // Check if user is banned
+    if (user.banned) {
+      return res.status(403).json({ error: 'User account is banned' });
+    }
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -900,6 +921,11 @@ app.get('/api/auth/verify', async (req, res) => {
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Check if user is banned
+    if (user.banned) {
+      return res.status(403).json({ error: 'Account is banned' });
     }
     
     res.json({ username: user.username, userId: user._id, teamId: user.teamId });
@@ -1491,6 +1517,12 @@ mongoose.connect(process.env.MONGODB_URI)
             let user = await User.findOne({ $or: [{ googleId: profile.id }, { email: email }] });
 
             if (user) {
+              // Check if user is banned
+              if (user.banned) {
+                console.log('Banned user attempted Google OAuth:', user.username);
+                return done(new Error('Account is banned'), null);
+              }
+              
               if (!user.googleId) {
                 user.googleId = profile.id;
                 user.isVerified = true;

@@ -1367,7 +1367,7 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
       Team.find().lean(),
       Challenge.find().lean(),
       User.find().lean(),
-      Solve.find().sort({ solvedAt: -1 }).limit(20).populate('challengeId').populate('teamId').lean()
+      Solve.find().sort({ solvedAt: -1 }).limit(50).populate('team').populate('challenge').lean()
     ]);
     
     // Calculate active teams (teams with activity in last 5 minutes)
@@ -1377,24 +1377,31 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
     ).length;
 
     // Get recent solves
-    const recentSolves = solves.slice(0, 10).map(solve => ({
-      teamName: solve.teamId?.teamName || 'Unknown',
-      challengeTitle: solve.challengeId?.title || 'Unknown',
-      category: solve.challengeId?.category || 'misc',
-      points: solve.points || 0,
-      solvedAt: solve.solvedAt
-    }));
+    const recentSolves = solves.slice(0, 10).map(solve => {
+      const challenge = solve.challenge;
+      const team = solve.team;
+      return {
+        teamName: team?.teamName || 'Unknown',
+        challengeTitle: challenge?.title || 'Unknown',
+        category: challenge?.category || 'misc',
+        points: challenge?.points || 0,
+        solvedAt: solve.solvedAt
+      };
+    });
 
     // Get first bloods (first solve for each challenge)
     const firstBloodMap = new Map();
     solves.forEach(solve => {
-      if (solve.challengeId && !firstBloodMap.has(solve.challengeId._id.toString())) {
-        firstBloodMap.set(solve.challengeId._id.toString(), {
-          teamName: solve.teamId?.teamName || 'Unknown',
-          challengeTitle: solve.challengeId?.title || 'Unknown',
-          points: solve.points || 0,
-          solvedAt: solve.solvedAt
-        });
+      if (solve.challenge) {
+        const challengeId = solve.challenge._id.toString();
+        if (!firstBloodMap.has(challengeId)) {
+          firstBloodMap.set(challengeId, {
+            teamName: solve.team?.teamName || 'Unknown',
+            challengeTitle: solve.challenge?.title || 'Unknown',
+            points: solve.challenge?.points || 0,
+            solvedAt: solve.solvedAt
+          });
+        }
       }
     });
     const firstBloods = Array.from(firstBloodMap.values()).slice(0, 10);
@@ -1402,8 +1409,8 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
     // Get most popular challenges
     const challengeSolveCount = {};
     solves.forEach(solve => {
-      if (solve.challengeId) {
-        const id = solve.challengeId._id.toString();
+      if (solve.challenge) {
+        const id = solve.challenge._id.toString();
         challengeSolveCount[id] = (challengeSolveCount[id] || 0) + 1;
       }
     });
@@ -1422,8 +1429,11 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
     // Solves by difficulty
     const solvesByDifficulty = { easy: 0, medium: 0, hard: 0 };
     solves.forEach(solve => {
-      if (solve.challengeId?.difficulty) {
-        solvesByDifficulty[solve.challengeId.difficulty] = (solvesByDifficulty[solve.challengeId.difficulty] || 0) + 1;
+      if (solve.challenge?.difficulty) {
+        const diff = solve.challenge.difficulty.toLowerCase();
+        if (solvesByDifficulty.hasOwnProperty(diff)) {
+          solvesByDifficulty[diff]++;
+        }
       }
     });
     

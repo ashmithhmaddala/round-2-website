@@ -469,7 +469,10 @@ function Challenges() {
   }
 
   const getChallengesByCategory = (category) => {
-    return challenges.filter(ch => ch.category === category && ch.visible !== false)
+    const difficultyOrder = { 'easy': 1, 'medium': 2, 'hard': 3 };
+    return challenges
+      .filter(ch => ch.category === category && ch.visible !== false)
+      .sort((a, b) => (difficultyOrder[a.difficulty] || 999) - (difficultyOrder[b.difficulty] || 999));
   }
 
   return (

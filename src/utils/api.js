@@ -437,22 +437,27 @@ export const setCurrentUser = (username) => {
 
 export const getCurrentUser = () => {
   const sessionData = localStorage.getItem('currentUser');
+  console.log('getCurrentUser - sessionData:', sessionData);
   if (!sessionData) return null;
   
   try {
     const { username, lastActivity } = JSON.parse(sessionData);
     const now = Date.now();
+    console.log('getCurrentUser - parsed:', { username, lastActivity, now, diff: now - lastActivity });
     
     // Check if session has expired (30 minutes of inactivity)
     if (now - lastActivity > INACTIVITY_TIMEOUT) {
+      console.log('getCurrentUser - session expired, logging out');
       logout();
       return null;
     }
     
     // Update last activity time whenever user is retrieved
     updateLastActivity();
+    console.log('getCurrentUser - returning username:', username);
     return username;
   } catch (error) {
+    console.log('getCurrentUser - parse error:', error);
     // Handle legacy format (plain string) - don't logout, just try to use it
     if (typeof sessionData === 'string') {
       // Could be a plain username string from old format
@@ -460,10 +465,12 @@ export const getCurrentUser = () => {
         const username = sessionData.replace(/"/g, '');
         if (username && !username.includes('{')) {
           // It's a plain string username, convert to new format
+          console.log('getCurrentUser - converting legacy format:', username);
           setCurrentUser(username);
           return username;
         }
       } catch (e) {
+        console.log('getCurrentUser - legacy conversion failed:', e);
         // Fall through to removal
       }
     }

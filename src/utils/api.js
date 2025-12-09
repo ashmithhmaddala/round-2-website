@@ -427,11 +427,13 @@ export const toggleAnnouncementPin = async (id) => {
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 export const setCurrentUser = (username) => {
+  console.log('setCurrentUser - setting user:', username);
   const sessionData = {
     username,
     lastActivity: Date.now()
   };
   localStorage.setItem('currentUser', JSON.stringify(sessionData));
+  console.log('setCurrentUser - saved to localStorage:', localStorage.getItem('currentUser'));
   updateLastActivity(); // Set up activity tracking
 };
 

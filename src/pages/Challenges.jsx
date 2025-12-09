@@ -419,24 +419,34 @@ function Challenges() {
       if (result.success) {
         const updatedTeam = await getTeam(teamData.code)
         setTeamData(updatedTeam)
-        showMessage(`Correct! +${result.points} points`, 'success')
+        showMessage(`✅ Correct! +${result.points} points`, 'success')
+        setFlagInput('')
         setModalOpen(false)
         setCurrentChallenge(null)
-      } else if (result.error && result.error.toLowerCase().includes('too many')) {
-        showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
       } else {
-        showMessage(result.message || 'Incorrect flag. Try again!', 'error')
+        // Handle non-success responses
+        const errorMsg = result.error || result.message || 'Incorrect flag. Try again!'
+        if (errorMsg.toLowerCase().includes('too many')) {
+          showMessage('⚠️ You are submitting flags too quickly. Please wait a minute.', 'warning')
+        } else if (errorMsg.toLowerCase().includes('already solved')) {
+          showMessage('✅ Your team has already solved this challenge!', 'info')
+        } else {
+          showMessage(`❌ ${errorMsg}`, 'error')
+        }
+        setFlagInput('')
       }
     } catch (error) {
-      if (error.message && error.message.toLowerCase().includes('too many')) {
-        showMessage('You are submitting flags too quickly. Please wait a minute and try again.', 'warning')
-      } else if (error.message && error.message.toLowerCase().includes('incorrect flag')) {
+      const errorMsg = error.message || 'Error submitting flag'
+      if (errorMsg.toLowerCase().includes('too many')) {
+        showMessage('⚠️ You are submitting flags too quickly. Please wait a minute.', 'warning')
+      } else if (errorMsg.toLowerCase().includes('incorrect flag')) {
         showMessage('❌ Incorrect flag! Try again.', 'error')
-      } else if (error.message && error.message.toLowerCase().includes('already solved')) {
+      } else if (errorMsg.toLowerCase().includes('already solved')) {
         showMessage('✅ Your team has already solved this challenge!', 'info')
       } else {
-        showMessage(error.message || 'Error submitting flag. Please try again.', 'error')
+        showMessage(`❌ ${errorMsg}`, 'error')
       }
+      setFlagInput('')
     }
   }
 

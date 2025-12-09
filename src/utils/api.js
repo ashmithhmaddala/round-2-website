@@ -121,8 +121,8 @@ export const submitFlag = async (challengeId, flag, username) => {
   console.log('📡 Response status:', response.status);
   const data = await response.json();
   console.log('📦 Response data:', data);
-  if (!response.ok) throw new Error(data.error || data.message || 'Unknown error');
-  return data;
+  // Don't throw error, return the data so caller can handle success/error
+  return { ...data, ok: response.ok, status: response.status };
 };
 
 export const createChallenge = async (challenge) => {

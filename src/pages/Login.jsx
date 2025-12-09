@@ -19,7 +19,7 @@ function Login() {
     confirmPassword: ''
   })
 
-  // Redirect if already logged in
+  // Redirect if already logged in and prevent back button
   useEffect(() => {
     // Don't redirect if we're processing OAuth callback
     const urlParams = new URLSearchParams(window.location.search)
@@ -33,25 +33,27 @@ function Login() {
       const username = getCurrentUser()
       if (username) {
         console.log('User already logged in, redirecting to dashboard')
+        // Replace history entry to prevent back button returning to login
+        window.history.replaceState(null, '', '/dashboard')
         navigate('/dashboard', { replace: true })
       }
     }
     
     checkAuth()
     
-    // Check again when page becomes visible (handles back button)
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        checkAuth()
+    // Prevent back button after login by monitoring history
+    const preventBack = (e) => {
+      const username = getCurrentUser()
+      if (username) {
+        e.preventDefault()
+        navigate('/dashboard', { replace: true })
       }
     }
     
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', checkAuth)
+    window.addEventListener('popstate', preventBack)
     
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', checkAuth)
+      window.removeEventListener('popstate', preventBack)
     }
   }, [navigate])
 
@@ -86,9 +88,11 @@ function Login() {
           if (data.username) {
             setCurrentUser(data.username)
             showMessage('Successfully signed in with Google!', 'success')
-            // Clear URL before navigating
-            window.history.replaceState({}, '', '/login')
-            setTimeout(() => navigate('/dashboard', { replace: true }), 500)
+            // Clear URL and redirect, preventing back navigation
+            setTimeout(() => {
+              window.history.replaceState(null, '', '/dashboard')
+              navigate('/dashboard', { replace: true })
+            }, 500)
           } else {
             console.error('No username in response:', data)
             showMessage('Sign-in verification failed', 'error')
@@ -116,7 +120,11 @@ function Login() {
       await login(loginData.username, loginData.password)
       setCurrentUser(loginData.username)
       showMessage('Login successful! Redirecting...', 'success')
-      setTimeout(() => navigate('/dashboard', { replace: true }), 1000)
+      // Clear login from history and redirect
+      setTimeout(() => {
+        window.history.replaceState(null, '', '/dashboard')
+        navigate('/dashboard', { replace: true })
+      }, 1000)
     } catch (error) {
       showMessage(error.message || 'Login failed', 'error')
     } finally {

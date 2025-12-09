@@ -57,11 +57,20 @@ function Challenges() {
     }
     loadData()
 
-    // Socket.io handles real-time updates - no polling needed
-    // Removed 5-second polling to prevent memory leaks
-    
+    // Prevent back button from going to login when logged in
+    const preventBackToLogin = (e) => {
+      const currentUsername = getCurrentUser()
+      if (currentUsername && window.location.pathname === '/') {
+        e.preventDefault()
+        window.history.pushState(null, '', '/challenges')
+      }
+    }
+
+    window.history.pushState(null, '', window.location.pathname)
+    window.addEventListener('popstate', preventBackToLogin)
+
     return () => {
-      // Cleanup if any
+      window.removeEventListener('popstate', preventBackToLogin)
     }
   }, [navigate])
 

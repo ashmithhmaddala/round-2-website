@@ -30,6 +30,22 @@ function Leaderboard() {
       return
     }
     setCurrentUser(username)
+
+    // Prevent back button from going to login when logged in
+    const preventBackToLogin = (e) => {
+      const currentUsername = getCurrentUser()
+      if (currentUsername && window.location.pathname === '/') {
+        e.preventDefault()
+        window.history.pushState(null, '', '/leaderboard')
+      }
+    }
+
+    window.history.pushState(null, '', window.location.pathname)
+    window.addEventListener('popstate', preventBackToLogin)
+
+    return () => {
+      window.removeEventListener('popstate', preventBackToLogin)
+    }
   }, [navigate])
 
   // Fetch teams and competition data

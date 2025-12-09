@@ -480,7 +480,8 @@ app.post('/api/admin/login', async (req, res) => {
     res.cookie('adminToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site, 'lax' for local dev
+      path: '/', // Apply cookie to all routes
       maxAge: 8 * 60 * 60 * 1000
     });
 
@@ -504,7 +505,12 @@ app.post('/api/admin/login', async (req, res) => {
 
 // Admin Logout
 app.post('/api/admin/logout', (req, res) => {
-  res.clearCookie('adminToken');
+  res.clearCookie('adminToken', {
+    path: '/', // Must match the path used when setting the cookie
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
   res.json({ success: true, message: 'Logged out successfully' });
 });
 

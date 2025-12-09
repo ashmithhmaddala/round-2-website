@@ -454,8 +454,13 @@ export const getCurrentUser = () => {
       return null;
     }
     
-    // Update last activity time whenever user is retrieved
-    updateLastActivity();
+    // Update last activity time whenever user is retrieved (BEFORE returning)
+    // This ensures the session stays alive during active navigation
+    const updatedSession = {
+      username,
+      lastActivity: now
+    };
+    localStorage.setItem('currentUser', JSON.stringify(updatedSession));
     console.log('getCurrentUser - returning username:', username);
     return username;
   } catch (error) {

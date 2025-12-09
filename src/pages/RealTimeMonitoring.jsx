@@ -65,9 +65,25 @@ function RealTimeMonitoring() {
     )
   }
 
-  if (!analytics) return null
+  if (!analytics) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3b8' }}>
+        <p>Failed to load analytics data. Please check your connection and try refreshing.</p>
+        <button onClick={() => loadAnalytics()} style={{ marginTop: '16px' }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
 
-  const { metrics, recentSolves, mostPopular, solvesByDifficulty, firstBloods } = analytics
+  // Handle both old and new API response formats
+  const recentSolves = analytics.recentSolves || []
+  const mostPopular = analytics.mostPopular || []
+  const solvesByDifficulty = analytics.solvesByDifficulty || []
+  const firstBloods = analytics.firstBloods || []
+  
+  // Extract metrics - handle both nested and flat structures
+  const metrics = analytics.metrics || analytics
 
   return (
     <div className="realtime-monitoring">
@@ -86,7 +102,7 @@ function RealTimeMonitoring() {
             {autoRefresh ? 'Live' : 'Paused'}
           </button>
           <span style={{ fontSize: '12px', color: '#64748b' }}>
-            Updated {new Date(analytics.lastUpdated).toLocaleTimeString()}
+            Updated {analytics.lastUpdated ? new Date(analytics.lastUpdated).toLocaleTimeString() : 'just now'}
           </span>
         </div>
       </div>
@@ -98,7 +114,7 @@ function RealTimeMonitoring() {
             <FaUsers />
           </div>
           <div className="stat-content">
-            <h3>{metrics.activeTeams}</h3>
+            <h3>{metrics.activeTeams || 0}</h3>
             <p>Active Teams (5min)</p>
           </div>
         </div>
@@ -107,7 +123,7 @@ function RealTimeMonitoring() {
             <FaCheckCircle />
           </div>
           <div className="stat-content">
-            <h3>{metrics.totalSolves}</h3>
+            <h3>{metrics.totalSolves || 0}</h3>
             <p>Total Solves</p>
           </div>
         </div>
@@ -116,7 +132,7 @@ function RealTimeMonitoring() {
             <FaPuzzlePiece />
           </div>
           <div className="stat-content">
-            <h3>{metrics.visibleChallenges}/{metrics.totalChallenges}</h3>
+            <h3>{metrics.visibleChallenges || 0}/{metrics.totalChallenges || 0}</h3>
             <p>Visible Challenges</p>
           </div>
         </div>
@@ -125,7 +141,7 @@ function RealTimeMonitoring() {
             <FaUsers />
           </div>
           <div className="stat-content">
-            <h3>{metrics.totalPlayers}</h3>
+            <h3>{metrics.totalPlayers || 0}</h3>
             <p>Total Players</p>
           </div>
         </div>

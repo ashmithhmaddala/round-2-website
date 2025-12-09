@@ -1357,11 +1357,11 @@ app.get('/api/admin/analytics/challenges', authenticateAdmin, async (req, res) =
 // Get realtime analytics
 app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => {
   try {
-    const [teams, challenges, users, recentLogs] = await Promise.all([
+    const [teams, challenges, users, solves] = await Promise.all([
       Team.find().lean(),
       Challenge.find().lean(),
       User.find().lean(),
-      Log.find().sort({ timestamp: -1 }).limit(10).lean()
+      Solve.find().sort({ solvedAt: -1 }).limit(20).populate('challengeId').populate('teamId').lean()
     ]);
     
     // Calculate active teams (teams with activity in last 5 minutes)
@@ -1369,6 +1369,57 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
     const activeTeams = teams.filter(team => 
       team.lastSolveTime && new Date(team.lastSolveTime) > fiveMinutesAgo
     ).length;
+
+    // Get recent solves
+    const recentSolves = solves.slice(0, 10).map(solve => ({
+      teamName: solve.teamId?.teamName || 'Unknown',
+      challengeTitle: solve.challengeId?.title || 'Unknown',
+      category: solve.challengeId?.category || 'misc',
+      points: solve.points || 0,
+      solvedAt: solve.solvedAt
+    }));
+
+    // Get first bloods (first solve for each challenge)
+    const firstBloodMap = new Map();
+    solves.forEach(solve => {
+      if (solve.challengeId && !firstBloodMap.has(solve.challengeId._id.toString())) {
+        firstBloodMap.set(solve.challengeId._id.toString(), {
+          teamName: solve.teamId?.teamName || 'Unknown',
+          challengeTitle: solve.challengeId?.title || 'Unknown',
+          points: solve.points || 0,
+          solvedAt: solve.solvedAt
+        });
+      }
+    });
+    const firstBloods = Array.from(firstBloodMap.values()).slice(0, 10);
+
+    // Get most popular challenges
+    const challengeSolveCount = {};
+    solves.forEach(solve => {
+      if (solve.challengeId) {
+        const id = solve.challengeId._id.toString();
+        challengeSolveCount[id] = (challengeSolveCount[id] || 0) + 1;
+      }
+    });
+    const mostPopular = Object.entries(challengeSolveCount)
+      .map(([id, count]) => {
+        const challenge = challenges.find(ch => ch._id.toString() === id);
+        return {
+          title: challenge?.title || 'Unknown',
+          solves: count,
+          category: challenge?.category || 'misc'
+        };
+      })
+      .sort((a, b) => b.solves - a.solves)
+      .slice(0, 5);
+
+    // Solves by difficulty
+    const solvesByDifficulty = { easy: 0, medium: 0, hard: 0 };
+    solves.forEach(solve => {
+      if (solve.challengeId?.difficulty) {
+        solvesByDifficulty[solve.challengeId.difficulty] = (solvesByDifficulty[solve.challengeId.difficulty] || 0) + 1;
+      }
+    });
     
     const analytics = {
       totalTeams: teams.length,
@@ -1378,18 +1429,18 @@ app.get('/api/admin/analytics/realtime', authenticateAdmin, async (req, res) => 
       activeChallenges: challenges.filter(ch => ch.visible && !ch.disabled).length,
       visibleChallenges: challenges.filter(ch => ch.visible && !ch.disabled).length,
       activeTeams: activeTeams,
-      totalSolves: teams.reduce((sum, team) => sum + (team.solvedChallenges?.length || 0), 0),
+      totalSolves: solves.length,
       averageScore: teams.length > 0 ? Math.round(teams.reduce((sum, team) => sum + team.score, 0) / teams.length) : 0,
-      recentActivity: recentLogs.map(log => ({
-        action: log.action,
-        username: log.username,
-        timestamp: log.timestamp,
-        details: log.details
-      }))
+      recentSolves,
+      firstBloods,
+      mostPopular,
+      solvesByDifficulty,
+      lastUpdated: new Date()
     };
     
     res.json(analytics);
   } catch (error) {
+    console.error('Realtime analytics error:', error);
     res.status(500).json({ error: error.message });
   }
 });

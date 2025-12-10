@@ -340,26 +340,6 @@ app.get('/api/uploads/list', async (req, res) => {
   }
 });
 
-// Debug route to check challenges without flags (admin only)
-app.get('/api/admin/challenges/check-flags', authenticateAdmin, async (req, res) => {
-  try {
-    const challengesWithoutFlags = await Challenge.find({ 
-      $or: [
-        { flagHash: { $exists: false } },
-        { flagHash: null },
-        { flagHash: '' }
-      ]
-    }).select('id title category').lean();
-    
-    res.json({ 
-      count: challengesWithoutFlags.length,
-      challenges: challengesWithoutFlags
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Direct file access endpoint for debugging
 app.get('/api/download/:filename', async (req, res) => {
   try {
@@ -495,6 +475,26 @@ const requireSuperAdmin = async (req, res, next) => {
     res.status(500).json({ error: 'Authorization error' });
   }
 };
+
+// Debug route to check challenges without flags (admin only)
+app.get('/api/admin/challenges/check-flags', authenticateAdmin, async (req, res) => {
+  try {
+    const challengesWithoutFlags = await Challenge.find({ 
+      $or: [
+        { flagHash: { $exists: false } },
+        { flagHash: null },
+        { flagHash: '' }
+      ]
+    }).select('id title category').lean();
+    
+    res.json({ 
+      count: challengesWithoutFlags.length,
+      challenges: challengesWithoutFlags
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Passport Config - will be initialized after MongoDB connects
 let isGoogleAuthConfigured = false;

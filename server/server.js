@@ -224,6 +224,11 @@ app.use(cors({
     if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
+    
+    // Allow any Render deployment
+    if (origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
 
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';

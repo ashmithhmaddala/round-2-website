@@ -453,15 +453,23 @@ function Challenges() {
   const handleDownloadFile = async (file, challengeId) => {
     try {
       const url = getChallengeFileUrl(challengeId, file.filename)
-      // Use direct link download to avoid blob conversion corruption
-      const link = document.createElement('a')
-      link.href = url
-      link.download = file.originalName
-      link.target = '_blank'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      console.log('Downloading from URL:', url);
+      
+      // Try using fetch first to check if file exists
+      const response = await fetch(url, {
+        method: 'HEAD'
+      });
+      
+      if (!response.ok) {
+        showMessage('File not found on server', 'error');
+        console.error('File not found:', response.status);
+        return;
+      }
+      
+      // Use direct link download - browser handles the download
+      window.open(url, '_blank');
     } catch (error) {
+      console.error('Download error:', error);
       showMessage('Error downloading file: ' + error.message, 'error')
     }
   }

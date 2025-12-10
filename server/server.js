@@ -357,7 +357,25 @@ app.get('/api/download/:filename', async (req, res) => {
       });
     }
     
-    res.download(filePath);
+    // Get file stats
+    const stats = fs.statSync(filePath);
+    console.log('File stats:', { size: stats.size, isFile: stats.isFile() });
+    
+    // Set proper headers for download
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', stats.size);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (error) => {
+      console.error('Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error streaming file' });
+      }
+    });
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: error.message });

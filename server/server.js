@@ -212,7 +212,8 @@ const allowedOrigins = [
 ];
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false  // Disable CSP to allow file downloads
 }));
 app.use(cors({
   origin: function (origin, callback) {
@@ -245,6 +246,9 @@ app.use((req, res, next) => {
 
 app.use(cookieParser()); // Parse cookies for JWT
 app.use(passport.initialize());
+
+// Handle CORS preflight for uploads
+app.options('/uploads/*', cors());
 
 // Serve uploaded files with proper headers
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
@@ -294,6 +298,16 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     }
   }
 }));
+
+// Debug route to list uploaded files
+app.get('/api/uploads/list', async (req, res) => {
+  try {
+    const files = fs.readdirSync(uploadDir);
+    res.json({ files, uploadDir });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {

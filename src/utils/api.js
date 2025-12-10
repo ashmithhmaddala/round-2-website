@@ -206,7 +206,9 @@ export const deleteChallengeFile = async (challengeId, filename) => {
 // Get file download URL
 export const getChallengeFileUrl = (challengeId, filename) => {
   const baseUrl = API_URL.replace('/api', '');
-  return `${baseUrl}/uploads/${filename}`;
+  const url = `${baseUrl}/uploads/${filename}`;
+  console.log('File download URL:', url);
+  return url;
 };
 
 // Reset all challenge statistics

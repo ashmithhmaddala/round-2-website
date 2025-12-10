@@ -87,11 +87,17 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // Ensure upload directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    // Sanitize filename to prevent path traversal
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    cb(null, uniqueSuffix + '-' + sanitizedName);
   }
 });
 
@@ -226,18 +232,31 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' })); // Prevent huge payloads
+
+// Body parsers - MUST come before routes but AFTER CORS
+// Don't use express.json for file upload routes
+app.use((req, res, next) => {
+  // Skip body parsing for multipart/form-data (file uploads)
+  if (req.is('multipart/form-data')) {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
 app.use(cookieParser()); // Parse cookies for JWT
 app.use(passport.initialize());
 
 // Serve uploaded files with proper headers
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'deny',
+  index: false,
   setHeaders: (res, filePath) => {
     // Critical CORS headers
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
     
     // Set appropriate content type based on file extension
     const ext = path.extname(filePath).toLowerCase();
@@ -253,18 +272,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
       '.rar': 'application/x-rar-compressed',
       '.tar': 'application/x-tar',
       '.gz': 'application/gzip',
+      '.bz2': 'application/x-bzip2',
       '.exe': 'application/octet-stream',
-      '.bin': 'application/octet-stream'
+      '.bin': 'application/octet-stream',
+      '.iso': 'application/octet-stream'
     };
     
-    if (mimeTypes[ext]) {
-      res.setHeader('Content-Type', mimeTypes[ext]);
-    } else {
-      res.setHeader('Content-Type', 'application/octet-stream');
-    }
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
     
-    // Set proper encoding for binary files
-    res.setHeader('Content-Transfer-Encoding', 'binary');
+    // Don't set Content-Transfer-Encoding (HTTP doesn't use it, that's for email)
+    // Express.static handles binary correctly by default
     
     // Allow inline viewing for images and PDFs only
     if (['.jpg', '.jpeg', '.png', '.gif', '.pdf'].includes(ext)) {
@@ -745,18 +763,39 @@ app.post('/api/admin/challenges/:id/files', authenticateAdmin, upload.array('fil
       return res.status(400).json({ error: 'No files uploaded' });
     }
     
-    const fileData = req.files.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype
-    }));
+    // Verify files were actually saved to disk
+    const fileData = [];
+    for (const file of req.files) {
+      const filePath = path.join(uploadDir, file.filename);
+      
+      // Check if file exists and is readable
+      if (!fs.existsSync(filePath)) {
+        console.error(`File not saved: ${file.filename}`);
+        continue;
+      }
+      
+      // Get actual file size from disk
+      const stats = fs.statSync(filePath);
+      
+      fileData.push({
+        filename: file.filename,
+        originalName: file.originalname,
+        size: stats.size,
+        mimetype: file.mimetype
+      });
+      
+      console.log(`File saved: ${file.filename} (${stats.size} bytes)`);
+    }
+    
+    if (fileData.length === 0) {
+      return res.status(500).json({ error: 'Files failed to save to disk' });
+    }
     
     challenge.files = challenge.files || [];
     challenge.files.push(...fileData);
     await challenge.save({ validateModifiedOnly: true });
     
-    await logAction('UPLOAD_FILE', req.admin.username, 'admin', `Uploaded ${req.files.length} file(s) to: ${challenge.title}`, req);
+    await logAction('UPLOAD_FILE', req.admin.username, 'admin', `Uploaded ${fileData.length} file(s) to: ${challenge.title}`, req);
     
     // Emit socket event to update all clients
     if (io) {

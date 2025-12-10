@@ -231,12 +231,14 @@ app.use(cookieParser()); // Parse cookies for JWT
 app.use(passport.initialize());
 
 // Serve uploaded files with proper headers
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  next();
-}, express.static(path.join(__dirname, 'uploads'), {
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, filePath) => {
+    // Critical CORS headers
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
     // Set appropriate content type based on file extension
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
@@ -257,11 +259,20 @@ app.use('/uploads', (req, res, next) => {
     
     if (mimeTypes[ext]) {
       res.setHeader('Content-Type', mimeTypes[ext]);
+    } else {
+      res.setHeader('Content-Type', 'application/octet-stream');
     }
     
-    // Allow inline viewing for images and PDFs
-    if (ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.gif' || ext === '.pdf') {
+    // Set proper encoding for binary files
+    res.setHeader('Content-Transfer-Encoding', 'binary');
+    
+    // Allow inline viewing for images and PDFs only
+    if (['.jpg', '.jpeg', '.png', '.gif', '.pdf'].includes(ext)) {
       res.setHeader('Content-Disposition', 'inline');
+    } else {
+      // Force download for archives and other files
+      const filename = path.basename(filePath);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     }
   }
 }));

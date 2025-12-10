@@ -453,16 +453,14 @@ function Challenges() {
   const handleDownloadFile = async (file, challengeId) => {
     try {
       const url = getChallengeFileUrl(challengeId, file.filename)
-      const response = await fetch(url)
-      const blob = await response.blob()
-      const blobUrl = window.URL.createObjectURL(blob)
+      // Use direct link download to avoid blob conversion corruption
       const link = document.createElement('a')
-      link.href = blobUrl
+      link.href = url
       link.download = file.originalName
+      link.target = '_blank'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      window.URL.revokeObjectURL(blobUrl)
     } catch (error) {
       showMessage('Error downloading file: ' + error.message, 'error')
     }

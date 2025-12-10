@@ -213,7 +213,19 @@ const allowedOrigins = [
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false  // Disable CSP to allow file downloads
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "*"],
+      connectSrc: ["'self'", "*"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"],
+    },
+  },
 }));
 app.use(cors({
   origin: function (origin, callback) {
@@ -308,8 +320,46 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 app.get('/api/uploads/list', async (req, res) => {
   try {
     const files = fs.readdirSync(uploadDir);
-    res.json({ files, uploadDir });
+    const fileDetails = files.map(filename => {
+      const filePath = path.join(uploadDir, filename);
+      const stats = fs.statSync(filePath);
+      return {
+        filename,
+        size: stats.size,
+        created: stats.birthtime,
+        path: filePath
+      };
+    });
+    res.json({ 
+      uploadDir, 
+      totalFiles: files.length,
+      files: fileDetails
+    });
   } catch (error) {
+    res.status(500).json({ error: error.message, uploadDir });
+  }
+});
+
+// Direct file access endpoint for debugging
+app.get('/api/download/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(uploadDir, filename);
+    
+    console.log('Download request:', { filename, filePath, exists: fs.existsSync(filePath) });
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ 
+        error: 'File not found',
+        filename,
+        uploadDir,
+        availableFiles: fs.readdirSync(uploadDir)
+      });
+    }
+    
+    res.download(filePath);
+  } catch (error) {
+    console.error('Download error:', error);
     res.status(500).json({ error: error.message });
   }
 });

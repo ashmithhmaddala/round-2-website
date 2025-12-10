@@ -205,7 +205,8 @@ const allowedOrigins = [
   'http://localhost:5000'
 ];
 app.use(helmet({
-  crossOriginResourcePolicy: false // allow CORS with helmet
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
 }));
 app.use(cors({
   origin: function (origin, callback) {
@@ -229,8 +230,41 @@ app.use(express.json({ limit: '10mb' })); // Prevent huge payloads
 app.use(cookieParser()); // Parse cookies for JWT
 app.use(passport.initialize());
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve uploaded files with proper headers
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    // Set appropriate content type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.pdf': 'application/pdf',
+      '.txt': 'text/plain',
+      '.zip': 'application/zip',
+      '.7z': 'application/x-7z-compressed',
+      '.rar': 'application/x-rar-compressed',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip',
+      '.exe': 'application/octet-stream',
+      '.bin': 'application/octet-stream'
+    };
+    
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
+    
+    // Allow inline viewing for images and PDFs
+    if (ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.gif' || ext === '.pdf') {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  }
+}));
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {

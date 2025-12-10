@@ -342,14 +342,16 @@ function Dashboard() {
 
   const handleJoinTeam = async (e) => {
     e.preventDefault()
-    if (teamCode.length !== 6) {
-      showMessage('Team code must be 6 digits.', 'error')
+    const sanitizedCode = teamCode.trim().toUpperCase()
+
+    if (!/^[A-Z0-9]{6}$/.test(sanitizedCode)) {
+      showMessage('Team code must be 6 letters or digits.', 'error')
       return
     }
     
     setIsJoiningTeam(true)
     try {
-      const result = await joinTeam(teamCode, currentUser)
+      const result = await joinTeam(sanitizedCode, currentUser)
       // Immediately re-check team status to update UI
       await checkTeamStatus(currentUser)
       showMessage('Successfully joined the team!', 'success')
@@ -511,12 +513,12 @@ function Dashboard() {
                         type="text"
                         id="teamCode"
                         value={teamCode}
-                        onChange={(e) => setTeamCode(e.target.value)}
-                        placeholder="000000"
+                        onChange={(e) => setTeamCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                        placeholder="ABC123"
                         required
                         maxLength={6}
-                        pattern="\d{6}"
-                        inputMode="numeric"
+                        pattern="[A-Za-z0-9]{6}"
+                        inputMode="text"
                         className="input-primary input-code"
                       />
                     </div>

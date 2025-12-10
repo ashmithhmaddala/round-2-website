@@ -533,7 +533,13 @@ app.get('/api/challenges', async (req, res) => {
     const challenges = await Challenge.find().select('-flagHash -flag').lean();
     res.json(challenges);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching challenges:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name
+    });
+    res.status(500).json({ error: 'Failed to load challenges: ' + error.message });
   }
 });
 
@@ -1018,7 +1024,13 @@ app.get('/api/teams', async (req, res) => {
     const teams = await Team.find().sort({ score: -1 });
     res.json(teams);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching teams:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name
+    });
+    res.status(500).json({ error: 'Failed to load teams: ' + error.message });
   }
 });
 

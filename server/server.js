@@ -340,6 +340,26 @@ app.get('/api/uploads/list', async (req, res) => {
   }
 });
 
+// Debug route to check challenges without flags (admin only)
+app.get('/api/admin/challenges/check-flags', authenticateAdmin, async (req, res) => {
+  try {
+    const challengesWithoutFlags = await Challenge.find({ 
+      $or: [
+        { flagHash: { $exists: false } },
+        { flagHash: null },
+        { flagHash: '' }
+      ]
+    }).select('id title category').lean();
+    
+    res.json({ 
+      count: challengesWithoutFlags.length,
+      challenges: challengesWithoutFlags
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Direct file access endpoint for debugging
 app.get('/api/download/:filename', async (req, res) => {
   try {
@@ -979,6 +999,12 @@ app.post('/api/challenges/:id/submit', async (req, res) => {
     
     if (challenge.disabled) {
       return res.status(403).json({ error: 'This challenge is currently disabled' });
+    }
+    
+    // Check if challenge has a flag set
+    if (!challenge.flagHash) {
+      console.error('Challenge missing flagHash:', challengeId);
+      return res.status(500).json({ error: 'Challenge configuration error. Please contact an administrator.' });
     }
     
     const user = await User.findOne({ username });
